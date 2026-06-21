@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}教练仪表盘 — 运动员平台{% endblock %}
+{% block page_title %}📊 教练仪表盘 — 全队总览{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- 关键统计卡片 -->
+<div class="metric-grid">
+  <div class="metric-card animate-fade-up stagger-1">
+    <div class="metric-value" id="statAthletes">{{ total_athletes }}</div>
+    <div class="metric-label">运动员总数</div>
+    <div class="metric-unit">人</div>
+  </div>
+  <div class="metric-card animate-fade-up stagger-2">
+    <div class="metric-value" id="statActive">{{ active_rate }}%</div>
+    <div class="metric-label">活跃率（近7天）</div>
+    <div class="metric-unit">有训练记录</div>
+  </div>
+  <div class="metric-card animate-fade-up stagger-3">
+    <div class="metric-value" id="statAvgT">{{ avg_t_score }}</div>
+    <div class="metric-label">全队平均 T 分</div>
+    <div class="metric-unit">基准 50</div>
+  </div>
+  <div class="metric-card animate-fade-up stagger-4" style="{% if risk_count > 0 %}border-color: var(--danger);{% endif %}">
+    <div class="metric-value" style="{% if risk_count > 0 %}color: var(--danger);{% endif %}" id="statRisk">{{ risk_count }}</div>
+    <div class="metric-label">⚠️ 高风险人数</div>
+    <div class="metric-unit">需关注</div>
+  </div>
+</div>
+
+<!-- 双栏布局 -->
+<div class="dashboard-grid">
+  <!-- 队内横向对比柱状图 -->
+  <div class="card card-accent-green animate-fade-up">
+    <div class="card-header">
+      <span class="card-title">📊 队内横向对比 — 关键测试项</span>
+    </div>
+    <div id="teamBarChart" style="width:100%;height:380px;"></div>
+  </div>
+
+  <!-- 高风险关注列表 -->
+  <div class="card card-accent-gold animate-fade-up">
+    <div class="card-header">
+      <span class="card-title">⚠️ 高风险关注列表</span>
+      <span class="badge badge-gold">{{ risk_count }} 人</span>
+    </div>
+    {% if risk_athletes %}
+    <div class="recent-list" style="max-height:320px;">
+      {% for ra in risk_athletes %}
+      <div class="recent-item">
+        <div>
+          <div class="ri-title">
+            <a href="{{ url_for('coach_athlete_detail', athlete_id=ra.id) }}">🏃 {{ ra.name }}</a>
+          </div>
+          <div class="ri-date">薄弱项: {{ ra.low_items[:3] | join('、') }}</div>
+        </div>
+        <span class="badge badge-red" style="background:rgba(229,57,53,.2);color:var(--danger);">需关注</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">✅</div>
+      <p>全队状态良好，无高风险运动员</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- 运动员快捷列表 -->
+<div class="card card-accent-teal animate-fade-up" style="margin-top:20px;">
+  <div class="card-header">
+    <span class="card-title">👥 运动员列表</span>
+    <a href="{{ url_for('coach_athletes') }}" class="btn btn-ghost btn-sm">查看全部 →</a>
+  </div>
+  {% if athletes %}
+  <div style="display:flex;gap:12px;flex-wrap:wrap;">
+    {% for a in athletes %}
+    <a href="{{ url_for('coach_athlete_detail', athlete_id=a.id) }}" class="athlete-chip">
+      <span class="chip-avatar">🏃</span>
+      <span class="chip-info">
+        <strong>{{ a.name }}</strong>
+        <small>{{ a.sport_type }} / {{ a.position }}</small>
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">👥</div>
+    <p>暂无运动员数据</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- 快速操作 -->
+<div class="quick-links animate-fade-up" style="margin-top:16px;">
+  <a href="{{ url_for('coach_athletes') }}" class="quick-link-card">
+    <div class="ql-icon">👥</div>
+    <div class="ql-text">运动员列表</div>
+  </a>
+  <a href="{{ url_for('coach_team_compare') }}" class="quick-link-card">
+    <div class="ql-icon">📊</div>
+    <div class="ql-text">横向对比</div>
+  </a>
+  <a href="{{ url_for('ai_chat') }}" class="quick-link-card">
+    <div class="ql-icon">🤖</div>
+    <div class="ql-text">AI 分析</div>
+  </a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ========== 队内横向对比柱状图 ========== */
+(function() {
+  var chartDom = document.getElementById('teamBarChart');
+  if (!chartDom || typeof echarts === 'undefined') return;
+
+  var chart = echarts.init(chartDom);
+
+  // 获取对比数据
+  fetch('/api/coach/team/compare_data?test_ids=&ids=')
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
+      var athleteNames = [];
+      var testNames = [];
+      var seriesData = [];
+
+      resp.athletes.forEach(function(a) { athleteNames.push(a.name); });
+
+      // 取前8个测试项
+      var tests = resp.tests.slice(0, 8);
+      tests.forEach(function(t) { testNames.push(t.name); });
+
+      resp.athletes.forEach(function(a) {
+        var values = [];
+        tests.forEach(function(t) {
+          var d = resp.data[String(a.id)][String(t.id)];
+          values.push(d && d.value !== null ? d.value : 0);
+        });
+        seriesData.push({
+          name: a.name,
+          type: 'bar',
+          data: values,
+          itemStyle: {
+            borderRadius: [4, 4, 0, 0]
+          },
+          emphasis: {
+            itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)' }
+          }
+        });
+      });
+
+      var option = {
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'shadow' },
+          backgroundColor: '#16213e',
+          borderColor: '#0f3460',
+          textStyle: { color: '#e8e8e8' }
+        },
+        legend: {
+          data: athleteNames,
+          textStyle: { color: '#a0a8b8' },
+          top: 0
+        },
+        grid: {
+          left: '3%', right: '4%', bottom: '3%',
+          top: '40px', containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          data: testNames,
+          axisLabel: { color: '#a0a8b8', fontSize: 11, rotate: 20 },
+          axisLine: { lineStyle: { color: '#1e2d50' } }
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: { color: '#606878' },
+          splitLine: { lineStyle: { color: '#1e2d50' } }
+        },
+        series: seriesData,
+        color: ['#a0c040', '#c0c060', '#4caf50', '#2196f3', '#ff9800', '#e53935']
+      };
+
+      chart.setOption(option);
+    })
+    .catch(function(err) {
+      chartDom.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><p>数据加载失败</p></div>';
+    });
+
+  // 响应式
+  window.addEventListener('resize', function() { chart.resize(); });
+})();
+</script>
+{% endblock %}

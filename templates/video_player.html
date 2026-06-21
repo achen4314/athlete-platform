@@ -1,0 +1,598 @@
+{% extends "base.html" %}
+
+{% block title %}{{ video.original_filename or '视频播放' }} — 运动员平台{% endblock %}
+{% block page_title %}🎥 {{ video.original_filename or '视频播放' }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .player-page { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
+
+  /* 播放器区 */
+  .player-section {
+    background: var(--dark-surface, #16213e);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .video-wrapper {
+    background: #000;
+    position: relative;
+  }
+  .video-wrapper video {
+    width: 100%;
+    display: block;
+    max-height: 480px;
+    object-fit: contain;
+  }
+  /* Canvas 叠加层 */
+  .canvas-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .player-controls {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.8rem;
+    color: var(--text-muted, #aaa);
+  }
+  .btn-icon {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--text, #e0e0e0);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .btn-icon:hover { border-color: var(--primary-green, #a0c040); }
+  .btn-icon.active { background: var(--primary-green, #a0c040); color: #1a1a2e; }
+
+  /* 信息面板 */
+  .info-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .info-card {
+    background: var(--dark-surface, #16213e);
+    border-radius: 10px;
+    padding: 16px 18px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .info-card h4 {
+    margin: 0 0 12px;
+    font-size: 0.9rem;
+    color: var(--primary-green, #a0c040);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 0.82rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .info-row .label { color: var(--text-muted, #888); }
+  .info-row .value { color: var(--text, #e0e0e0); font-weight: 600; }
+
+  /* 指标表格 */
+  .metrics-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+  .metrics-table th {
+    text-align: left;
+    color: var(--text-muted, #888);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-bottom: 2px solid rgba(255,255,255,0.06);
+  }
+  .metrics-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--text, #e0e0e0);
+  }
+  .metric-highlight {
+    color: var(--primary-green, #a0c040) !important;
+    font-weight: 700;
+  }
+  .mock-badge {
+    display: inline-block;
+    background: rgba(255,193,7,0.15);
+    color: #ffc107;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+
+  /* 姿态预览区 */
+  .pose-preview {
+    text-align: center;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pose-preview canvas {
+    max-width: 100%;
+    border-radius: 6px;
+  }
+
+  /* 返回链接 */
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-muted, #888);
+    font-size: 0.82rem;
+    text-decoration: none;
+    margin-bottom: 16px;
+  }
+  .back-link:hover { color: var(--primary-green, #a0c040); }
+
+  /* 响应式 */
+  @media (max-width: 800px) {
+    .player-page { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="player-page">
+
+  {% if error %}
+  <div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-muted,#888);">
+    <div style="font-size:3rem;">⚠️</div>
+    <p>{{ error }}</p>
+    <a href="{{ url_for('video_list_page') }}" class="btn-sm btn-outline">返回视频列表</a>
+  </div>
+  {% else %}
+
+  <!-- 左侧：播放器 -->
+  <div class="player-section">
+    <a href="{{ url_for('video_list_page') }}" class="back-link" style="margin:12px 0 0 16px;display:inline-block;">← 返回列表</a>
+    <div class="video-wrapper" id="videoWrapper">
+      <video id="mainVideo"
+             src="{{ url_for('api_get_video', video_id=video.video_id) }}"
+             controls
+             crossorigin="anonymous"
+             style="display:block;">
+        您的浏览器不支持 HTML5 视频播放
+      </video>
+      <canvas class="canvas-overlay" id="poseCanvas"></canvas>
+    </div>
+    <div class="player-controls">
+      <span style="flex:1;">{{ video.original_filename }}</span>
+      <button class="btn-icon" id="togglePose" onclick="togglePoseOverlay()">📐 姿态标注</button>
+      {% if video.status == 'done' and video.analysis_results %}
+      <button class="btn-icon" id="btnAiDiagnose" onclick="requestAiDiagnose()">🤖 AI 诊断</button>
+      {% endif %}
+      {% if video.status == 'error' %}
+      <button class="btn-icon" onclick="reprocessVideo()">🔄 重新分析</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- 右侧：信息面板 -->
+  <div class="info-section">
+
+    <!-- 视频信息 -->
+    <div class="info-card">
+      <h4>📋 视频信息</h4>
+      <div class="info-row">
+        <span class="label">状态</span>
+        <span class="value">
+          <span class="status-badge status-{{ video.status }}">{{ video.status_label }}</span>
+        </span>
+      </div>
+      <div class="info-row">
+        <span class="label">测试类型</span>
+        <span class="value">{{ video.test_type or '未指定' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">文件大小</span>
+        <span class="value">{{ video.file_size_mb }} MB</span>
+      </div>
+      <div class="info-row">
+        <span class="label">时长</span>
+        <span class="value">{{ "%.1f"|format(video.duration_seconds) if video.duration_seconds else '—' }} 秒</span>
+      </div>
+      <div class="info-row">
+        <span class="label">上传时间</span>
+        <span class="value">{{ video.created_at.strftime('%Y-%m-%d %H:%M') if video.created_at else '—' }}</span>
+      </div>
+      {% if video.notes %}
+      <div class="info-row">
+        <span class="label">备注</span>
+        <span class="value">{{ video.notes }}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- 分析结果 -->
+    <div class="info-card" id="analysisCard">
+      <h4>
+        📊 分析结果
+        {% if video.parsed_results.get('is_mock') %}
+        <span class="mock-badge">模拟</span>
+        {% endif %}
+      </h4>
+
+      {% set results = video.parsed_results %}
+      {% set metrics = results.get('metrics', {}) %}
+
+      {% if video.status == 'processing' %}
+      <div style="text-align:center;padding:24px;">
+        <div style="font-size:2rem;">⏳</div>
+        <p style="color:var(--text-muted,#888);">正在处理中...</p>
+        <div class="progress-bar-bg" style="margin-top:8px;">
+          <div class="progress-bar-fill" style="width:60%;animation:pulse 1.5s infinite;"></div>
+        </div>
+      </div>
+      {% elif video.status == 'error' %}
+      <div style="text-align:center;padding:24px;color:#f44;">
+        <p>处理失败</p>
+        {% if results.get('error') %}
+        <p style="font-size:0.78rem;color:var(--text-muted,#888);">{{ results.error }}</p>
+        {% endif %}
+      </div>
+      {% elif video.status == 'uploaded' %}
+      <div style="text-align:center;padding:24px;color:var(--text-muted,#888);">
+        <p>等待处理...</p>
+      </div>
+      {% elif metrics %}
+      <table class="metrics-table">
+        <thead><tr><th>指标</th><th>数值</th></tr></thead>
+        <tbody>
+          {% for key, value in metrics.items() %}
+            {% if key not in ('type', 'note', 'error') %}
+            <tr>
+              <td>{{ key }}</td>
+              <td class="{% if key in ('squat_depth','estimated_jump_height_cm','knee_angle_min','hip_angle_min') %}metric-highlight{% endif %}">
+                {% if value is number %}
+                  {{ "%.1f"|format(value) }}
+                {% else %}
+                  {{ value }}
+                {% endif %}
+              </td>
+            </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if metrics.get('note') %}
+        <p style="font-size:0.72rem;color:var(--text-muted,#888);margin-top:8px;">💡 {{ metrics.note }}</p>
+      {% endif %}
+      {% else %}
+      <p style="color:var(--text-muted,#888);text-align:center;">暂无分析数据</p>
+      {% endif %}
+    </div>
+
+    <!-- 姿态预览 -->
+    <div class="info-card" id="posePreviewCard" style="display:none;">
+      <h4>🦴 姿态预览</h4>
+      <div class="pose-preview">
+        <canvas id="skeletonCanvas" width="280" height="280"></canvas>
+      </div>
+    </div>
+
+    <!-- AI 诊断报告 -->
+    <div class="info-card" id="aiDiagnosisCard" style="display:none;">
+      <h4>🤖 AI 诊断报告</h4>
+      <div id="aiDiagnosisContent" style="font-size:0.82rem;line-height:1.6;color:var(--text,#e0e0e0);max-height:400px;overflow-y:auto;"></div>
+    </div>
+
+  </div>
+
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ========== 视频数据注入 ==========
+const videoData = {{ video.parsed_results | tojson | safe if video else '{}' }};
+const videoId = '{{ video.video_id if video else "" }}';
+
+// ========== 姿态标注叠加 ==========
+let poseOverlayActive = false;
+let animationId = null;
+
+function togglePoseOverlay() {
+  poseOverlayActive = !poseOverlayActive;
+  const btn = document.getElementById('togglePose');
+  const canvas = document.getElementById('poseCanvas');
+  const video = document.getElementById('mainVideo');
+  const previewCard = document.getElementById('posePreviewCard');
+
+  if (poseOverlayActive) {
+    btn.classList.add('active');
+    btn.textContent = '📐 关闭标注';
+    if (previewCard) previewCard.style.display = 'block';
+    drawSkeletonPreview();
+    startPoseOverlay(canvas, video);
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '📐 姿态标注';
+    if (previewCard) previewCard.style.display = 'none';
+    stopPoseOverlay(canvas);
+  }
+}
+
+function startPoseOverlay(canvas, video) {
+  const ctx = canvas.getContext('2d');
+  
+  function resizeCanvas() {
+    canvas.width = video.clientWidth;
+    canvas.height = video.clientHeight;
+  }
+  resizeCanvas();
+
+  function drawFrame() {
+    if (!poseOverlayActive) return;
+
+    resizeCanvas();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 绘制模拟骨架（基于视频时间查找最近的关键帧）
+    const keyframes = videoData.keyframe_data || [];
+    if (keyframes.length > 0) {
+      const currentTime = video.currentTime;
+      // 找最近的关键帧
+      let closest = keyframes[0];
+      let minDist = Infinity;
+      for (const kf of keyframes) {
+        const dist = Math.abs(kf.time_sec - currentTime);
+        if (dist < minDist) { minDist = dist; closest = kf; }
+      }
+      
+      if (closest.landmarks && closest.landmarks.length > 0) {
+        drawPoseOnCanvas(ctx, canvas.width, canvas.height, closest.landmarks);
+      } else {
+        // 没有地标数据，绘制模拟骨架
+        drawMockSkeleton(ctx, canvas.width, canvas.height, currentTime);
+      }
+    } else {
+      drawMockSkeleton(ctx, canvas.width, canvas.height, video.currentTime);
+    }
+
+    animationId = requestAnimationFrame(drawFrame);
+  }
+
+  animationId = requestAnimationFrame(drawFrame);
+}
+
+function stopPoseOverlay(canvas) {
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// ========== 骨架绘制 ==========
+
+// MediaPipe Pose 连线定义
+const POSE_CONNECTIONS = [
+  [11,12],[11,13],[13,15],[12,14],[14,16],
+  [11,23],[12,24],[23,24],
+  [23,25],[25,27],[27,29],[27,31],
+  [24,26],[26,28],[28,30],[28,32],
+];
+
+function drawPoseOnCanvas(ctx, w, h, landmarks) {
+  // 画连线
+  ctx.strokeStyle = '#a0c040';
+  ctx.lineWidth = 2;
+  for (const [i, j] of POSE_CONNECTIONS) {
+    if (i < landmarks.length && j < landmarks.length) {
+      const a = landmarks[i], b = landmarks[j];
+      if ((a.visibility || 0) > 0.5 && (b.visibility || 0) > 0.5) {
+        ctx.beginPath();
+        ctx.moveTo(a.x * w, a.y * h);
+        ctx.lineTo(b.x * w, b.y * h);
+        ctx.stroke();
+      }
+    }
+  }
+  // 画关键点
+  for (const lm of landmarks) {
+    if ((lm.visibility || 0) > 0.5) {
+      ctx.fillStyle = '#00ff64';
+      ctx.beginPath();
+      ctx.arc(lm.x * w, lm.y * h, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+// 模拟骨架（当没有真实数据时）
+function drawMockSkeleton(ctx, w, h, time) {
+  const cx = w / 2, cy = h * 0.35;
+  const scale = Math.min(w, h) * 0.35;
+  const sway = Math.sin(time * 2) * 0.03;
+
+  // 简化版骨架关键点 (x, y 比例)
+  const points = {
+    0:  [0.50, 0.15],           // nose
+    11: [0.42 + sway, 0.32],    // left_shoulder
+    12: [0.58 - sway, 0.32],    // right_shoulder
+    13: [0.35 + sway, 0.48],    // left_elbow
+    14: [0.65 - sway, 0.48],    // right_elbow
+    15: [0.30 + sway, 0.62],    // left_wrist
+    16: [0.70 - sway, 0.62],    // right_wrist
+    23: [0.44 + sway, 0.55],    // left_hip
+    24: [0.56 - sway, 0.55],    // right_hip
+    25: [0.42 + sway, 0.75],    // left_knee
+    26: [0.58 - sway, 0.75],    // right_knee
+    27: [0.40 + sway, 0.92],    // left_ankle
+    28: [0.60 - sway, 0.92],    // right_ankle
+  };
+
+  ctx.strokeStyle = 'rgba(160,192,64,0.6)';
+  ctx.lineWidth = 2;
+  for (const [i, j] of POSE_CONNECTIONS) {
+    if (points[i] && points[j]) {
+      ctx.beginPath();
+      ctx.moveTo(points[i][0] * w, points[i][1] * h);
+      ctx.lineTo(points[j][0] * w, points[j][1] * h);
+      ctx.stroke();
+    }
+  }
+
+  for (const [_, pt] of Object.entries(points)) {
+    ctx.fillStyle = '#00ff64';
+    ctx.beginPath();
+    ctx.arc(pt[0] * w, pt[1] * h, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// 姿态预览小图
+function drawSkeletonPreview() {
+  const canvas = document.getElementById('skeletonCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 绘制静态模拟骨架
+  drawMockSkeleton(ctx, canvas.width, canvas.height, 0);
+  
+  // 如果是深蹲，画出角度标注
+  {% set results = video.parsed_results if video else {} %}
+  {% set metrics = results.get('metrics', {}) %}
+  {% if metrics.get('type') == 'squat' and metrics.get('knee_angle_min') %}
+  ctx.fillStyle = '#a0c040';
+  ctx.font = '11px monospace';
+  ctx.fillText('膝角: {{ "%.0f"|format(metrics.knee_angle_min) }}°', 10, 20);
+  {% endif %}
+  {% if metrics.get('type') == 'jump' and metrics.get('estimated_jump_height_cm') %}
+  ctx.fillStyle = '#a0c040';
+  ctx.font = '11px monospace';
+  ctx.fillText('跳高: {{ "%.1f"|format(metrics.estimated_jump_height_cm) }}cm', 10, 20);
+  {% endif %}
+}
+
+// ========== AI 诊断 ==========
+async function requestAiDiagnose() {
+  const card = document.getElementById('aiDiagnosisCard');
+  const content = document.getElementById('aiDiagnosisContent');
+  const btn = document.getElementById('btnAiDiagnose');
+
+  card.style.display = 'block';
+  content.innerHTML = '<div style="text-align:center;padding:12px;">⏳ 正在生成 AI 诊断报告...</div>';
+  btn.disabled = true;
+  btn.textContent = '⏳ 分析中...';
+
+  try {
+    const resp = await fetch('/api/ai/diagnose', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        video_id: videoId,
+        analysis_results: videoData
+      })
+    });
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let report = '';
+    content.innerHTML = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const text = decoder.decode(value, { stream: true });
+      const lines = text.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.token) {
+              report += data.token;
+              content.innerHTML = report.replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+              content.scrollTop = content.scrollHeight;
+            } else if (data.done) {
+              // done
+            } else if (data.error) {
+              content.innerHTML = '<p style="color:#f44;">❌ ' + data.error + '</p>';
+            }
+          } catch(e) {}
+        }
+      }
+    }
+
+    if (!report) {
+      content.innerHTML = '<p style="color:var(--text-muted);">AI 服务未配置 API 密钥，无法生成诊断报告。请在 .env 中设置 DEEPSEEK_API_KEY</p>';
+    }
+  } catch(e) {
+    content.innerHTML = '<p style="color:#f44;">❌ 请求失败: ' + e.message + '</p>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 AI 诊断';
+  }
+}
+
+// ========== 重新处理 ==========
+async function reprocessVideo() {
+  if (!confirm('确定重新分析此视频？')) return;
+  try {
+    const resp = await fetch('/api/videos/' + videoId + '/reprocess', { method: 'POST' });
+    const data = await resp.json();
+    if (data.success) {
+      showToast('✅ 分析完成，刷新中...', 'success');
+      setTimeout(function() { location.reload(); }, 1000);
+    } else {
+      showToast('❌ 分析失败', 'error');
+    }
+  } catch(e) {
+    showToast('❌ 请求失败', 'error');
+  }
+}
+
+// ========== 初始化 ==========
+// 如果分析已完成，自动显示姿态预览卡片
+if (videoData.status === 'done' && videoData.metrics) {
+  document.getElementById('posePreviewCard').style.display = 'block';
+  drawSkeletonPreview();
+}
+
+// 状态轮询（处理中时自动刷新）
+{% if video and video.status in ('uploaded', 'processing') %}
+let pollCount = 0;
+const maxPolls = 120; // 最多轮询 10 分钟
+
+function pollStatus() {
+  if (pollCount >= maxPolls) return;
+  pollCount++;
+
+  fetch('/api/videos/' + videoId + '/status')
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'done' || data.status === 'error') {
+        location.reload();
+      } else {
+        setTimeout(pollStatus, 5000);
+      }
+    })
+    .catch(() => { setTimeout(pollStatus, 5000); });
+}
+
+setTimeout(pollStatus, 3000);
+{% endif %}
+</script>
+{% endblock %}

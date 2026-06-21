@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}AI 对话 — 运动员平台{% endblock %}
+{% block page_title %}🤖 AI 智能助手{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+  <!-- 消息列表 -->
+  <div class="chat-messages" id="chatMessages">
+    <!-- 欢迎消息 -->
+    <div class="message assistant animate-fade-up">
+      <div class="msg-avatar">🏃</div>
+      <div class="msg-bubble">
+        <p>你好！👋 我是 <strong>运动员平台 AI 助手</strong>。</p>
+        <p>我可以帮你：</p>
+        <ul>
+          <li>📊 分析你的运动表现数据</li>
+          <li>💡 提供个性化训练建议</li>
+          <li>🩺 伤病预防与恢复指导</li>
+          <li>🍎 营养与饮食建议</li>
+          <li>🎯 设定与追踪训练目标</li>
+        </ul>
+        <p>直接输入问题开始对话，或点击下方的快捷提示 👇</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 快捷提示 -->
+  <div class="quick-prompts" id="quickPrompts">
+    <button class="quick-prompt-btn" data-prompt="请分析我最近的训练数据，给出综合评价和改进建议。">
+      📊 分析我的数据
+    </button>
+    <button class="quick-prompt-btn" data-prompt="根据我的运动项目和当前水平，给我制定一个为期4周的训练计划。">
+      💪 训练建议
+    </button>
+    <button class="quick-prompt-btn" data-prompt="作为运动员，我应该如何预防常见的运动伤病？请给出针对性的建议。">
+      🩺 伤病预防建议
+    </button>
+    <button class="quick-prompt-btn" data-prompt="请给我今天的赛后恢复建议，包括营养、拉伸和休息。">
+      🔄 恢复建议
+    </button>
+    <button class="quick-prompt-btn" data-prompt="帮我分析一下我的身体指标变化趋势，看看哪些地方需要重点关注。">
+      📈 趋势分析
+    </button>
+  </div>
+
+  <!-- 输入区域 -->
+  <div class="chat-input-area">
+    <div class="chat-input-row">
+      <textarea
+        id="chatInput"
+        rows="1"
+        placeholder="输入你的问题... (Enter 发送，Shift+Enter 换行)"
+        maxlength="4000"
+      ></textarea>
+      <button class="send-btn" id="sendBtn" title="发送消息">➤</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+<script>
+/* ========== 输入框 placeholder 轮播 ========== */
+(function() {
+  var input = document.getElementById('chatInput');
+  if (!input) return;
+  var placeholders = [
+    '问问我最近的训练趋势...',
+    '帮我分析深蹲数据...',
+    '给我一个4周的训练计划...',
+    '如何预防运动伤病？',
+    '今天的恢复建议是什么？',
+    '帮我解读体脂率变化...',
+    '间歇跑应该怎么安排？',
+    '我的VO₂max水平如何？'
+  ];
+  var idx = 0;
+  setInterval(function() {
+    if (document.activeElement !== input && !input.value) {
+      input.setAttribute('placeholder', placeholders[idx] + ' (Enter 发送)');
+      idx = (idx + 1) % placeholders.length;
+    }
+  }, 3000);
+})();
+</script>
+{% endblock %}

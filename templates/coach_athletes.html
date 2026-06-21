@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}运动员列表 — 运动员平台{% endblock %}
+{% block page_title %}👥 运动员列表{% endblock %}
+
+{% block content %}
+<div class="animate-fade-up">
+
+  {% if athlete_data %}
+  <div class="coach-athletes-grid">
+    {% for ad in athlete_data %}
+    <a href="{{ url_for('coach_athlete_detail', athlete_id=ad.athlete.id) }}" class="coach-athlete-card">
+      <div class="cac-header">
+        <span class="cac-avatar">🏃</span>
+        <div>
+          <div class="cac-name">{{ ad.athlete.name }}</div>
+          <div class="cac-meta">{{ ad.athlete.sport_type }} · {{ ad.athlete.position }}</div>
+        </div>
+        <span class="cac-t-score {% if ad.avg_t_score >= 55 %}t-good{% elif ad.avg_t_score >= 45 %}t-ok{% else %}t-low{% endif %}">
+          T{{ ad.avg_t_score }}
+        </span>
+      </div>
+      <div class="cac-stats">
+        <div class="cac-stat-item">
+          <span class="cac-stat-val">{{ ad.test_count }}</span>
+          <span class="cac-stat-lbl">测试项</span>
+        </div>
+        <div class="cac-stat-item">
+          <span class="cac-stat-val">{{ ad.athlete.training_years }}</span>
+          <span class="cac-stat-lbl">训练年</span>
+        </div>
+        <div class="cac-stat-item">
+          <span class="cac-stat-val">{{ ad.athlete.level or '—' }}</span>
+          <span class="cac-stat-lbl">等级</span>
+        </div>
+      </div>
+      <div class="cac-footer">
+        <span class="btn btn-ghost btn-sm">查看详情 →</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">👥</div>
+    <p>暂无运动员数据</p>
+    <p style="font-size:0.78rem;margin-top:8px;">请先创建运动员档案并录入测试数据</p>
+  </div>
+  {% endif %}
+
+  <div style="margin-top:20px;">
+    <a href="{{ url_for('coach_dashboard') }}" class="btn btn-ghost">← 返回仪表盘</a>
+    <a href="{{ url_for('coach_team_compare') }}" class="btn btn-secondary" style="margin-left:8px;">📊 横向对比</a>
+  </div>
+
+</div>
+{% endblock %}

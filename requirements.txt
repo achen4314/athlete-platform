@@ -1,0 +1,5 @@
+flask>=2.3
+flask-sqlalchemy>=3.0
+requests>=2.28
+werkzeug>=2.3
+openai>=1.0

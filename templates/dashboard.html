@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}仪表盘 — 运动员平台{% endblock %}
+{% block page_title %}📊 运动员仪表盘{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- 欢迎引导卡片 -->
+<div class="welcome-card animate-fade-up">
+  {% if athlete %}
+  <div class="athlete-name">👋 欢迎回来，{{ athlete.name }}！</div>
+  <div class="athlete-meta">
+    <span>📌 项目：{{ athlete.sport_type or '未设置' }}</span>
+    <span>🏠 位置：{{ athlete.position or '未设置' }}</span>
+    <span>📅 等级：{{ athlete.level or '未设置' }}</span>
+  </div>
+  <div class="guide-hint" style="margin-top:10px;font-size:0.82rem;color:var(--brand-gold);">
+    💡 今天建议录入：
+    <a href="{{ url_for('data_entry') }}#tab-body" class="btn btn-ghost btn-sm">🫀 身体指标</a>
+    <a href="{{ url_for('data_entry') }}#tab-training" class="btn btn-ghost btn-sm">🏃 训练日志</a>
+  </div>
+  {% else %}
+  <div class="athlete-name">👋 欢迎！</div>
+  <div class="athlete-meta">请先完善你的运动员档案信息</div>
+  <div class="guide-hint" style="margin-top:10px;">
+    <a href="{{ url_for('athlete_profile_page') }}" class="btn btn-primary btn-sm">📝 前往设置完善档案</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- 关键指标 -->
+<div class="metric-grid">
+  <div class="metric-card animate-fade-up stagger-1">
+    <div class="metric-value" id="metricVo2" data-value="{{ latest_metric.vo2_max if latest_metric and latest_metric.vo2_max else '' }}">{% if latest_metric and latest_metric.vo2_max %}{{ latest_metric.vo2_max }}{% else %}--{% endif %}</div>
+    <div class="metric-label">VO₂max</div>
+    <div class="metric-unit">mL/kg/min</div>
+  </div>
+  <div class="metric-card animate-fade-up stagger-2">
+    <div class="metric-value" id="metricBodyFat" data-value="{{ latest_metric.body_fat_pct if latest_metric and latest_metric.body_fat_pct else '' }}">{% if latest_metric and latest_metric.body_fat_pct %}{{ latest_metric.body_fat_pct }}{% else %}--{% endif %}</div>
+    <div class="metric-label">体脂率</div>
+    <div class="metric-unit">%</div>
+  </div>
+  <div class="metric-card animate-fade-up stagger-3">
+    <div class="metric-value" id="metricRHR" data-value="{{ latest_metric.resting_hr if latest_metric and latest_metric.resting_hr else '' }}">{% if latest_metric and latest_metric.resting_hr %}{{ latest_metric.resting_hr }}{% else %}--{% endif %}</div>
+    <div class="metric-label">静息心率</div>
+    <div class="metric-unit">bpm</div>
+  </div>
+  <div class="metric-card animate-fade-up stagger-4">
+    <div class="metric-value" id="metricWeight" data-value="{{ latest_metric.weight_kg if latest_metric and latest_metric.weight_kg else '' }}">{% if latest_metric and latest_metric.weight_kg %}{{ latest_metric.weight_kg }}{% else %}--{% endif %}</div>
+    <div class="metric-label">体重</div>
+    <div class="metric-unit">kg</div>
+  </div>
+</div>
+
+<!-- 双栏布局 -->
+<div class="dashboard-grid">
+  <!-- 最近测试摘要 -->
+  <div class="card card-accent-green animate-fade-up">
+    <div class="card-header">
+      <span class="card-title">📋 最近测试摘要</span>
+      <a href="{{ url_for('data_entry') }}" class="btn btn-ghost btn-sm">查看更多 →</a>
+    </div>
+
+    {% if recent_tests %}
+    <div class="recent-list">
+      {% for test in recent_tests %}
+      <div class="recent-item">
+        <div>
+          <div class="ri-title">{{ test.test.name if test.test else '体能测试' }}</div>
+          <div class="ri-date">{{ test.test_date }}</div>
+        </div>
+        <div>
+          <span class="badge badge-green">{{ test.raw_value }} {{ test.test.unit if test.test else '' }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <p>暂无测试记录</p>
+      <a href="{{ url_for('data_entry') }}" class="btn btn-primary btn-sm" style="margin-top:10px;">录入第一条数据</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- 最近训练日志 + 快速链接 -->
+  <div>
+    <div class="card card-accent-teal animate-fade-up" style="margin-bottom:16px;">
+      <div class="card-header">
+        <span class="card-title">🏃 最近训练日志</span>
+        <a href="{{ url_for('data_entry') }}#tab-training" class="btn btn-ghost btn-sm">全部 →</a>
+      </div>
+
+      {% if recent_training %}
+      <div class="recent-list">
+        {% for log in recent_training %}
+        <div class="recent-item">
+          <div>
+            <div class="ri-title">{{ log.content[:30] if log.content else '训练' }}{% if log.content and log.content|length > 30 %}...{% endif %}</div>
+            <div class="ri-date">{{ log.session_date }}</div>
+          </div>
+          <div class="ri-detail">{{ log.duration_min }}分钟</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">🏋️</div>
+        <p>暂无训练日志</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- 快速链接 -->
+    <div class="quick-links animate-fade-up">
+      <a href="{{ url_for('data_entry') }}" class="quick-link-card">
+        <div class="ql-icon">📝</div>
+        <div class="ql-text">录入数据</div>
+      </a>
+      <a href="{{ url_for('ai_chat') }}" class="quick-link-card">
+        <div class="ql-icon">🤖</div>
+        <div class="ql-text">AI 对话</div>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- 雷达图：能力概览 -->
+{% if athlete and recent_tests %}
+<div class="card card-accent-gold animate-fade-up" style="margin-top:20px;">
+  <div class="card-header">
+    <span class="card-title">🎯 能力概览</span>
+    <span class="badge badge-gold">T分</span>
+  </div>
+  <div id="dashboardRadar" style="width:100%;height:350px;"></div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% if athlete and recent_tests %}
+<script>
+(function() {
+  var radarDom = document.getElementById('dashboardRadar');
+  if (!radarDom || typeof echarts === 'undefined' || typeof renderRadarChart === 'undefined') return;
+
+  fetch('/api/athlete/{{ athlete.id }}/data')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var testRecords = data.test_records || [];
+      // 按 category 聚合最近值
+      var catMap = {};
+      testRecords.forEach(function(r) {
+        var cat = r.test_category || '其他';
+        if (!catMap[cat] || r.test_date > catMap[cat].date) {
+          catMap[cat] = { value: r.raw_value, date: r.test_date, name: r.test_name };
+        }
+      });
+
+      var dims = [];
+      var vals = [];
+      var catMaxVals = {
+        '速度': 8, '爆发力': 350, '敏捷性': 15, '柔韧性': 30,
+        '上肢力量': 150, '下肢力量': 200, '有氧耐力': 25, '速度耐力': 20,
+        '上肢耐力': 25, '身体成分': 30, '功能性筛查': 21
+      };
+
+      for (var cat in catMap) {
+        var maxVal = catMaxVals[cat] || Math.max(catMap[cat].value * 1.5, 10);
+        dims.push({ name: cat, max: maxVal });
+        vals.push(catMap[cat].value);
+      }
+
+      if (dims.length >= 3) {
+        renderRadarChart('dashboardRadar', dims, [
+          { name: '{{ athlete.name }}', value: vals, color: '#a0c040' }
+        ]);
+      } else {
+        radarDom.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><p>需要至少3项测试数据才能生成雷达图</p></div>';
+      }
+    })
+    .catch(function() {
+      radarDom.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><p>数据加载失败</p></div>';
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

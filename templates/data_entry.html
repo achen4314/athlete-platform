@@ -1,0 +1,609 @@
+{% extends "base.html" %}
+{% block title %}数据录入 — 运动员平台{% endblock %}
+{% block page_title %}📝 数据录入{% endblock %}
+
+{% block content %}
+<div class="data-entry-form animate-fade-up">
+
+  <!-- Tab 切换 -->
+  <div class="tabs" id="entryTabs">
+    <button class="tab-btn active" data-tab="tab-body">🫀 身体指标</button>
+    <button class="tab-btn" data-tab="tab-test">📊 测试记录</button>
+    <button class="tab-btn" data-tab="tab-training">🏃 训练日志</button>
+    <button class="tab-btn" data-tab="tab-injury">🩺 伤病记录</button>
+  </div>
+
+  <!-- ===== Tab 1: 身体指标 ===== -->
+  <div class="tab-panel active" id="tab-body">
+    <form id="bodyForm" onsubmit="return handleBodySubmit(event)">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">身体指标录入</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="body_weight">
+              体重 (kg) *
+              <span class="tooltip-trigger" data-tip="晨起空腹测量，穿轻便衣物，排空大小便后称重。建议每周同一天同一时间测量。">❓</span>
+            </label>
+            <input type="number" id="body_weight" name="weight_kg" class="form-input"
+                   placeholder="例：72.5" step="0.1" min="30" max="200" required>
+            <div class="form-error-msg">请输入 30-200 之间的数值</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="body_fat">
+              体脂率 (%)
+              <span class="tooltip-trigger" data-tip="建议使用生物电阻抗体脂秤，晨起空腹测量。皮褶法需由专业人士操作。测量前4小时避免剧烈运动和大量饮水。">❓</span>
+            </label>
+            <input type="number" id="body_fat" name="body_fat_pct" class="form-input"
+                   placeholder="例：12.5" step="0.1" min="2" max="50">
+            <div class="form-error-msg">请输入 2-50 之间的数值</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="body_muscle">
+              肌肉量 (kg)
+              <span class="tooltip-trigger" data-tip="通过生物电阻抗或 DEXA 扫描获得。肌肉量是评估力量训练效果的重要指标，建议每月追踪。">❓</span>
+            </label>
+            <input type="number" id="body_muscle" name="muscle_mass" class="form-input"
+                   placeholder="例：35.0" step="0.1" min="10" max="80">
+            <div class="form-error-msg">请输入 10-80 之间的数值</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="body_rhr">
+              静息心率 (bpm)
+              <span class="tooltip-trigger" data-tip="早晨醒来后躺姿测量1分钟，或使用心率带/手表读取晨起静息值。持续升高可能是过度训练的信号。">❓</span>
+            </label>
+            <input type="number" id="body_rhr" name="resting_hr" class="form-input"
+                   placeholder="例：58" step="1" min="30" max="120">
+            <div class="form-error-msg">请输入 30-120 之间的数值</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="body_bp_sys">收缩压 (mmHg)</label>
+            <input type="number" id="body_bp_sys" name="blood_pressure_sys" class="form-input"
+                   placeholder="例：120" step="1" min="70" max="200">
+            <div class="form-error-msg">请输入 70-200 之间的数值</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="body_bp_dia">舒张压 (mmHg)</label>
+            <input type="number" id="body_bp_dia" name="blood_pressure_dia" class="form-input"
+                   placeholder="例：80" step="1" min="40" max="130">
+            <div class="form-error-msg">请输入 40-130 之间的数值</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="body_vo2">
+            VO₂max (mL/kg/min)
+            <span class="tooltip-trigger" data-tip="需专业气体分析设备测试（金标准），或使用12分钟跑（Cooper测试）、YoYo测试等间接估算。反映有氧耐力上限。">❓</span>
+          </label>
+          <input type="number" id="body_vo2" name="vo2_max" class="form-input"
+                 placeholder="例：55.0" step="0.1" min="20" max="90">
+          <div class="form-error-msg">请输入 20-90 之间的数值</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="body_date">测量日期 *</label>
+          <input type="date" id="body_date" name="record_date" class="form-input" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary">✅ 提交身体指标</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ===== Tab 2: 测试记录 ===== -->
+  <div class="tab-panel" id="tab-test">
+    <form id="testForm" onsubmit="return handleTestSubmit(event)">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">测试记录录入</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="test_name">测试项目 *</label>
+          <select id="test_name" name="test_id" class="form-input" required>
+            <option value="">— 请选择测试项目 —</option>
+            {% for test in tests %}
+            <option value="{{ test.id }}">{{ test.name }} ({{ test.unit }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="test_value">测试值 *</label>
+            <input type="text" id="test_value" name="raw_value" class="form-input"
+                   placeholder="例：11.2 (秒) 或 120 (kg)" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="test_unit">单位</label>
+            <select id="test_unit" name="unit" class="form-input">
+              <option value="s">秒 (s)</option>
+              <option value="m">米 (m)</option>
+              <option value="kg">千克 (kg)</option>
+              <option value="cm">厘米 (cm)</option>
+              <option value="reps">次数</option>
+              <option value="level">级别</option>
+              <option value="other">其他</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="test_date">测试日期 *</label>
+          <input type="date" id="test_date" name="test_date" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="test_note">备注</label>
+          <textarea id="test_note" name="note" class="form-input" rows="2"
+                    placeholder="可选：测试环境、感受等"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">✅ 提交测试记录</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ===== Tab 3: 训练日志 ===== -->
+  <div class="tab-panel" id="tab-training">
+    <form id="trainingForm" onsubmit="return handleTrainingSubmit(event)">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">训练日志录入</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="train_date">训练日期 *</label>
+            <input type="date" id="train_date" name="session_date" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="train_duration">训练时长（分钟）</label>
+            <input type="number" id="train_duration" name="duration_min" class="form-input"
+                   placeholder="例：60" step="1" min="5" max="480">
+            <div class="form-error-msg">请输入 5-480 之间的数值</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="train_intensity">训练强度</label>
+            <select id="train_intensity" name="intensity" class="form-input">
+              <option value="low">🟢 低强度</option>
+              <option value="moderate" selected>🟡 中等强度</option>
+              <option value="high">🟠 高强度</option>
+              <option value="max">🔴 最大强度</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="train_rpe">RPE（自感劳累 1-10）</label>
+            <select id="train_rpe" name="rpe" class="form-input">
+              <option value="">— 选择 RPE —</option>
+              {% for i in range(1, 11) %}
+              <option value="{{ i }}">{{ i }} — {% if i <= 2 %}非常轻松{% elif i <= 4 %}轻松{% elif i <= 6 %}中等{% elif i <= 8 %}吃力{% else %}极限{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="train_distance">距离 (km)</label>
+            <input type="number" id="train_distance" name="total_distance_km" class="form-input"
+                   placeholder="例：5.0" step="0.1" min="0" max="200">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="train_hr">平均心率 (bpm)</label>
+            <input type="number" id="train_hr" name="hr_avg" class="form-input"
+                   placeholder="例：145" step="1" min="40" max="220">
+            <div class="form-error-msg">请输入 40-220 之间的数值</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="train_content">训练内容 *</label>
+          <textarea id="train_content" name="content" class="form-input" rows="3"
+                    placeholder="请描述训练内容，如：热身跑 2km + 间歇跑 400m×8 + 拉伸"
+                    required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="train_note">备注</label>
+          <textarea id="train_note" name="note" class="form-input" rows="2"
+                    placeholder="可选：身体感受、天气、装备等"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">✅ 提交训练日志</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ===== Tab 4: 伤病记录 ===== -->
+  <div class="tab-panel" id="tab-injury">
+    <form id="injuryForm" onsubmit="return handleInjurySubmit(event)">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">伤病记录录入</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="injury_date">受伤日期 *</label>
+            <input type="date" id="injury_date" name="injury_date" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="body_part">受伤部位 *</label>
+            <select id="body_part" name="body_part" class="form-input" required>
+              <option value="">— 请选择部位 —</option>
+              <option value="肩部">肩部</option>
+              <option value="肘部">肘部</option>
+              <option value="腕部">腕部</option>
+              <option value="腰部">腰部</option>
+              <option value="髋部">髋部</option>
+              <option value="膝部">膝部</option>
+              <option value="踝部">踝部</option>
+              <option value="大腿">大腿</option>
+              <option value="小腿">小腿</option>
+              <option value="足部">足部</option>
+              <option value="颈部">颈部</option>
+              <option value="背部">背部</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="injury_type">伤情类型 *</label>
+            <select id="injury_type" name="injury_type" class="form-input" required>
+              <option value="">— 请选择类型 —</option>
+              <option value="肌肉拉伤">肌肉拉伤</option>
+              <option value="韧带扭伤">韧带扭伤</option>
+              <option value="肌腱炎">肌腱炎</option>
+              <option value="关节脱位">关节脱位</option>
+              <option value="骨折">骨折</option>
+              <option value="挫伤">挫伤</option>
+              <option value="劳损">劳损</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="severity">严重程度</label>
+            <select id="severity" name="severity" class="form-input">
+              <option value="mild">🟢 轻度</option>
+              <option value="moderate" selected>🟡 中度</option>
+              <option value="severe">🔴 重度</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="injury_status">当前状态</label>
+            <select id="injury_status" name="status" class="form-input">
+              <option value="active">🟠 活动中</option>
+              <option value="recovering">🟢 恢复中</option>
+              <option value="recovered">✅ 已康复</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="recovery_date">康复日期</label>
+            <input type="date" id="recovery_date" name="recovery_date" class="form-input">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="injury_desc">伤情描述</label>
+          <textarea id="injury_desc" name="description" class="form-input" rows="2"
+                    placeholder="描述受伤经过、症状等"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="injury_notes">治疗备注</label>
+          <textarea id="injury_notes" name="notes" class="form-input" rows="2"
+                    placeholder="可选：治疗方案、康复计划等"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">✅ 提交伤病记录</button>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ========== Tooltip 指引 ========== */
+(function() {
+  var triggers = document.querySelectorAll('.tooltip-trigger');
+  var activeTip = null;
+
+  triggers.forEach(function(trigger) {
+    trigger.addEventListener('click', function(e) {
+      e.stopPropagation();
+      // 关闭之前的
+      if (activeTip) activeTip.remove();
+
+      var tip = document.createElement('div');
+      tip.className = 'tooltip-bubble';
+      tip.textContent = trigger.getAttribute('data-tip');
+      tip.style.position = 'absolute';
+      tip.style.zIndex = '9999';
+
+      trigger.style.position = 'relative';
+      trigger.appendChild(tip);
+
+      // 定位
+      var rect = trigger.getBoundingClientRect();
+      tip.style.top = '24px';
+      tip.style.left = '0';
+
+      activeTip = tip;
+
+      setTimeout(function() { tip.classList.add('show'); }, 10);
+
+      // 3秒后自动消失
+      setTimeout(function() {
+        if (activeTip === tip) {
+          tip.classList.remove('show');
+          setTimeout(function() { tip.remove(); activeTip = null; }, 300);
+        }
+      }, 4000);
+    });
+  });
+
+  document.addEventListener('click', function() {
+    if (activeTip) {
+      activeTip.classList.remove('show');
+      setTimeout(function() { activeTip.remove(); activeTip = null; }, 300);
+    }
+  });
+})();
+/* ========== Tab 切换 ========== */
+(function() {
+  var tabs = document.querySelectorAll('#entryTabs .tab-btn');
+  var panels = document.querySelectorAll('.tab-panel');
+
+  tabs.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var targetId = this.getAttribute('data-tab');
+
+      tabs.forEach(function(b) { b.classList.remove('active'); });
+      panels.forEach(function(p) { p.classList.remove('active'); });
+
+      this.classList.add('active');
+      document.getElementById(targetId).classList.add('active');
+    });
+  });
+})();
+
+/* ========== 表单验证 & 提交 ========== */
+
+function validateInput(input, min, max, name) {
+  var val = parseFloat(input.value);
+  if (input.value.trim() === '') return true; // 可选字段
+  if (isNaN(val) || val < min || val > max) {
+    input.classList.add('error');
+    return false;
+  }
+  input.classList.remove('error');
+  return true;
+}
+
+// 绑定实时验证
+(function() {
+  document.querySelectorAll('input[type="number"]').forEach(function(input) {
+    input.addEventListener('input', function() {
+      var min = parseFloat(this.getAttribute('min'));
+      var max = parseFloat(this.getAttribute('max'));
+      if (!isNaN(min) && !isNaN(max)) {
+        validateInput(this, min, max);
+      }
+    });
+  });
+})();
+
+function handleBodySubmit(e) {
+  e.preventDefault();
+
+  // 验证
+  var valid = true;
+  if (!validateInput(document.getElementById('body_weight'), 30, 200)) valid = false;
+  if (!validateInput(document.getElementById('body_fat'), 2, 50)) valid = false;
+  if (!validateInput(document.getElementById('body_muscle'), 10, 80)) valid = false;
+  if (!validateInput(document.getElementById('body_rhr'), 30, 120)) valid = false;
+  if (!validateInput(document.getElementById('body_bp_sys'), 70, 200)) valid = false;
+  if (!validateInput(document.getElementById('body_bp_dia'), 40, 130)) valid = false;
+  if (!validateInput(document.getElementById('body_vo2'), 20, 90)) valid = false;
+
+  if (!document.getElementById('body_date').value) {
+    document.getElementById('body_date').classList.add('error');
+    valid = false;
+  } else {
+    document.getElementById('body_date').classList.remove('error');
+  }
+
+  if (!valid) {
+    showToast('请修正表单中的错误', 'error');
+    return false;
+  }
+
+  // 提交表单
+  var form = document.getElementById('bodyForm');
+  var formData = new FormData(form);
+
+  fetch('{{ url_for("api_create_metric") }}', {
+    method: 'POST',
+    body: formData
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.success) {
+      showToast('✅ 身体指标已保存！', 'success');
+      form.reset();
+    } else {
+      showToast('❌ ' + (data.error || '保存失败'), 'error');
+    }
+  })
+  .catch(function() {
+    showToast('❌ 网络错误，请稍后重试', 'error');
+  });
+
+  return false;
+}
+
+function handleTestSubmit(e) {
+  e.preventDefault();
+
+  if (!document.getElementById('test_name').value) {
+    document.getElementById('test_name').classList.add('error');
+    showToast('请选择测试项目', 'error');
+    return false;
+  }
+  document.getElementById('test_name').classList.remove('error');
+
+  if (!document.getElementById('test_value').value.trim()) {
+    document.getElementById('test_value').classList.add('error');
+    showToast('请输入测试值', 'error');
+    return false;
+  }
+  document.getElementById('test_value').classList.remove('error');
+
+  if (!document.getElementById('test_date').value) {
+    document.getElementById('test_date').classList.add('error');
+    showToast('请选择日期', 'error');
+    return false;
+  }
+  document.getElementById('test_date').classList.remove('error');
+
+  var form = document.getElementById('testForm');
+  var formData = new FormData(form);
+
+  fetch('{{ url_for("api_create_test_record") }}', {
+    method: 'POST',
+    body: formData
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.success) {
+      showToast('✅ 测试记录已保存！', 'success');
+      form.reset();
+    } else {
+      showToast('❌ ' + (data.error || '保存失败'), 'error');
+    }
+  })
+  .catch(function() {
+    showToast('❌ 网络错误，请稍后重试', 'error');
+  });
+
+  return false;
+}
+
+function handleTrainingSubmit(e) {
+  e.preventDefault();
+
+  if (!document.getElementById('train_date').value) {
+    document.getElementById('train_date').classList.add('error');
+    showToast('请选择训练日期', 'error');
+    return false;
+  }
+
+  if (!validateInput(document.getElementById('train_duration'), 5, 480)) {
+    showToast('请输入有效的训练时长（5-480分钟）', 'error');
+    return false;
+  }
+
+  if (!validateInput(document.getElementById('train_hr'), 40, 220)) {
+    showToast('请输入有效的心率值（40-220）', 'error');
+    return false;
+  }
+
+  if (!document.getElementById('train_content').value.trim()) {
+    document.getElementById('train_content').classList.add('error');
+    showToast('请输入训练内容', 'error');
+    return false;
+  }
+  document.getElementById('train_content').classList.remove('error');
+
+  if (!document.getElementById('train_intensity').value) {
+    showToast('请选择训练强度', 'error');
+    return false;
+  }
+
+  if (!document.getElementById('train_rpe').value) {
+    showToast('请选择 RPE 值', 'error');
+    return false;
+  }
+
+  var form = document.getElementById('trainingForm');
+  var formData = new FormData(form);
+
+  fetch('{{ url_for("api_create_training") }}', {
+    method: 'POST',
+    body: formData
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.success) {
+      showToast('✅ 训练日志已保存！', 'success');
+      form.reset();
+    } else {
+      showToast('❌ ' + (data.error || '保存失败'), 'error');
+    }
+  })
+  .catch(function() {
+    showToast('❌ 网络错误，请稍后重试', 'error');
+  });
+
+  return false;
+}
+
+function handleInjurySubmit(e) {
+  e.preventDefault();
+
+  if (!document.getElementById('injury_date').value) {
+    showToast('请选择受伤日期', 'error');
+    return false;
+  }
+  if (!document.getElementById('body_part').value) {
+    showToast('请选择受伤部位', 'error');
+    return false;
+  }
+  if (!document.getElementById('injury_type').value) {
+    showToast('请选择伤情类型', 'error');
+    return false;
+  }
+
+  var form = document.getElementById('injuryForm');
+  var formData = new FormData(form);
+
+  fetch('{{ url_for("api_create_injury") }}', {
+    method: 'POST',
+    body: formData
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.success) {
+      showToast('✅ 伤病记录已保存！', 'success');
+      form.reset();
+    } else {
+      showToast('❌ ' + (data.error || '保存失败'), 'error');
+    }
+  })
+  .catch(function() {
+    showToast('❌ 网络错误，请稍后重试', 'error');
+  });
+
+  return false;
+}
+</script>
+{% endblock %}

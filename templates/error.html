@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ error }} — 运动员平台</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="plain-layout">
+    <div class="login-wrapper animate-fade-up" style="text-align:center;">
+      <div class="login-card">
+        <div class="login-logo">⚠️</div>
+        <div class="login-brand-name">{{ brand.BRAND_SHORT }}</div>
+        <div class="login-brand-sub">{{ error }}</div>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary" style="margin-top:20px;">返回仪表盘</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

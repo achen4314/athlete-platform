@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}运动员数据分析平台{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <!-- 移动端遮罩 -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="app-layout">
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <span class="logo-icon">🏃</span>
+        <span class="brand-text">
+          运动员平台<br>
+          <small>运动员数据分析平台</small>
+        </span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="{{ url_for('athlete_profile_page') }}" class="nav-item {% if request.endpoint == 'athlete_profile_page' %}active{% endif %}">
+          <span class="nav-icon">📋</span> 运动员档案
+        </a>
+        <div class="nav-section-title" style="margin-top:18px;">功能</div>
+        <a href="{{ url_for('dashboard') }}" class="nav-item {% if request.endpoint in ('dashboard', 'coach_dashboard') %}active{% endif %}">
+          <span class="nav-icon">📊</span> 仪表盘
+        </a>
+        {% if session.get('role') in ('coach', 'doctor', 'analyst', 'admin') %}
+        <a href="{{ url_for('coach_athletes') }}" class="nav-item {% if request.endpoint == 'coach_athletes' %}active{% endif %}">
+          <span class="nav-icon">👥</span> 运动员列表
+        </a>
+        <a href="{{ url_for('coach_team_compare') }}" class="nav-item {% if request.endpoint == 'coach_team_compare' %}active{% endif %}">
+          <span class="nav-icon">📊</span> 横向对比
+        </a>
+        {% else %}
+        <a href="{{ url_for('data_entry') }}" class="nav-item {% if request.endpoint == 'data_entry' %}active{% endif %}">
+          <span class="nav-icon">📝</span> 数据录入
+        </a>
+        {% endif %}
+        <a href="{{ url_for('ai_chat') }}" class="nav-item {% if request.endpoint == 'ai_chat' %}active{% endif %}">
+          <span class="nav-icon">🤖</span> AI 对话
+        </a>
+        <a href="{{ url_for('video_list_page') }}" class="nav-item {% if request.endpoint == 'video_list_page' or request.endpoint == 'video_player_page' %}active{% endif %}">
+          <span class="nav-icon">🎥</span> 视频分析
+        </a>
+
+        <div class="nav-section-title" style="margin-top:18px;">其他</div>
+        <a href="{{ url_for('logout') }}" class="nav-item">
+          <span class="nav-icon">🚪</span> 退出登录
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-avatar">{{ session.get('username', '?')[0] | upper }}</div>
+        <div>
+          <div class="user-name">{{ session.get('username', '未登录') }}</div>
+          <div class="user-role">{{ session.get('role', '运动员') }}</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 主内容 -->
+    <main class="main-content">
+      <!-- 顶部栏 -->
+      <header class="topbar">
+        <div style="display:flex;align-items:center;">
+          <button class="hamburger" id="hamburgerBtn" aria-label="菜单">☰</button>
+          <span class="topbar-title">{% block page_title %}运动员平台{% endblock %}</span>
+        </div>
+        <div class="topbar-actions">
+          <span style="font-size:0.78rem;color:var(--text-muted);">{{ session.get('username', '') }}</span>
+          <a href="{{ url_for('logout') }}" class="btn btn-ghost btn-sm">退出</a>
+        </div>
+      </header>
+
+      <!-- 页面内容 -->
+      <div class="page-content">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast 容器 -->
+  <div id="toastContainer"></div>
+
+  <script>
+    /* ========== 移动端侧边栏切换 ========== */
+    (function() {
+      var sidebar = document.getElementById('sidebar');
+      var overlay = document.getElementById('sidebarOverlay');
+      var btn     = document.getElementById('hamburgerBtn');
+
+      function openSidebar() {
+        sidebar.classList.add('open');
+        overlay.classList.add('visible');
+      }
+
+      function closeSidebar() {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('visible');
+      }
+
+      if (btn) btn.addEventListener('click', openSidebar);
+      if (overlay) overlay.addEventListener('click', closeSidebar);
+
+      /* Toast 工具函数 */
+      window.showToast = function(message, type) {
+        type = type || 'info';
+        var container = document.getElementById('toastContainer');
+        var toast = document.createElement('div');
+        toast.className = 'toast toast-' + type;
+        toast.textContent = message;
+        container.appendChild(toast);
+
+        requestAnimationFrame(function() {
+          toast.classList.add('show');
+        });
+
+        setTimeout(function() {
+          toast.classList.remove('show');
+          setTimeout(function() { toast.remove(); }, 400);
+        }, 3000);
+      };
+    })();
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

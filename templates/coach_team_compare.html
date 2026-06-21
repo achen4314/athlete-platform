@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}队内横向对比 — 运动员平台{% endblock %}
+{% block page_title %}📊 队内横向对比{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="animate-fade-up">
+
+  <!-- 选择器 -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <span class="card-title">🎯 选择对比范围</span>
+      <button class="btn btn-primary btn-sm" onclick="refreshCompare()">🔄 刷新图表</button>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <div class="form-label">选择运动员</div>
+      <div class="checkbox-group" id="athleteCheckboxes">
+        {% for a in athletes %}
+        <label class="checkbox-chip">
+          <input type="checkbox" value="{{ a.id }}" {% if loop.index <= 4 %}checked{% endif %}>
+          <span>{{ a.name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div>
+      <div class="form-label">选择测试项目</div>
+      <div class="checkbox-group" id="testCheckboxes">
+        {% for t in tests %}
+        <label class="checkbox-chip">
+          <input type="checkbox" value="{{ t.id }}" {% if loop.index <= 6 %}checked{% endif %}>
+          <span>{{ t.name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- 柱状图 -->
+  <div class="card card-accent-green" style="margin-bottom:20px;">
+    <div class="card-header">
+      <span class="card-title">📊 并排对比柱状图</span>
+    </div>
+    <div id="compareBarChart" style="width:100%;height:450px;"></div>
+  </div>
+
+  <!-- 差异高亮表 -->
+  <div class="card card-accent-gold">
+    <div class="card-header">
+      <span class="card-title">🔍 差异高亮</span>
+    </div>
+    <div id="diffTable" style="overflow-x:auto;">
+      <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <p>请选择运动员和测试项目后点击「刷新图表」</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;">
+    <a href="{{ url_for('coach_dashboard') }}" class="btn btn-ghost">← 返回仪表盘</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ========== 横向对比图表 ========== */
+function getSelectedIds(containerId) {
+  var checks = document.querySelectorAll('#' + containerId + ' input[type="checkbox"]:checked');
+  var ids = [];
+  checks.forEach(function(cb) { ids.push(cb.value); });
+  return ids;
+}
+
+function refreshCompare() {
+  var athleteIds = getSelectedIds('athleteCheckboxes');
+  var testIds = getSelectedIds('testCheckboxes');
+
+  if (athleteIds.length === 0 || testIds.length === 0) {
+    showToast('请至少选择1名运动员和1个测试项目', 'error');
+    return;
+  }
+
+  var url = '/api/coach/team/compare_data?ids=' + athleteIds.join(',') + '&test_ids=' + testIds.join(',');
+
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
+      renderCompareChart(resp);
+      renderDiffTable(resp);
+    })
+    .catch(function() {
+      showToast('数据加载失败', 'error');
+    });
+}
+
+function renderCompareChart(resp) {
+  var chartDom = document.getElementById('compareBarChart');
+  if (!chartDom || typeof echarts === 'undefined') return;
+
+  var chart = echarts.init(chartDom);
+  var testNames = resp.tests.map(function(t) { return t.name; });
+  var seriesData = [];
+
+  var colors = ['#a0c040', '#c0c060', '#4caf50', '#2196f3', '#ff9800', '#e53935', '#9c27b0', '#00bcd4'];
+
+  resp.athletes.forEach(function(a, idx) {
+    var values = [];
+    resp.tests.forEach(function(t) {
+      var d = resp.data[String(a.id)][String(t.id)];
+      values.push(d && d.value !== null ? d.value : 0);
+    });
+    seriesData.push({
+      name: a.name,
+      type: 'bar',
+      data: values,
+      itemStyle: {
+        color: colors[idx % colors.length],
+        borderRadius: [4, 4, 0, 0]
+      }
+    });
+  });
+
+  var option = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      backgroundColor: '#16213e',
+      borderColor: '#0f3460',
+      textStyle: { color: '#e8e8e8' }
+    },
+    legend: {
+      data: resp.athletes.map(function(a) { return a.name; }),
+      textStyle: { color: '#a0a8b8' },
+      top: 0
+    },
+    grid: {
+      left: '3%', right: '4%', bottom: '3%',
+      top: '45px', containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: testNames,
+      axisLabel: { color: '#a0a8b8', fontSize: 11, rotate: 25 },
+      axisLine: { lineStyle: { color: '#1e2d50' } }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: '#606878' },
+      splitLine: { lineStyle: { color: '#1e2d50' } }
+    },
+    series: seriesData
+  };
+
+  chart.setOption(option);
+  window.addEventListener('resize', function() { chart.resize(); });
+}
+
+function renderDiffTable(resp) {
+  var tableDiv = document.getElementById('diffTable');
+  if (!resp.athletes.length || !resp.tests.length) return;
+
+  // 计算每个测试项的均值用于高亮
+  var testAvgs = {};
+  resp.tests.forEach(function(t) {
+    var sum = 0, count = 0;
+    resp.athletes.forEach(function(a) {
+      var d = resp.data[String(a.id)][String(t.id)];
+      if (d && d.value !== null) { sum += d.value; count++; }
+    });
+    testAvgs[t.id] = count > 0 ? sum / count : 0;
+  });
+
+  var html = '<table class="diff-table"><thead><tr><th>测试项目</th>';
+  resp.athletes.forEach(function(a) {
+    html += '<th>' + a.name + '</th>';
+  });
+  html += '<th>差异</th></tr></thead><tbody>';
+
+  resp.tests.forEach(function(t) {
+    html += '<tr><td class="diff-test-name">' + t.name + ' (' + t.unit + ')</td>';
+
+    var vals = [];
+    resp.athletes.forEach(function(a) {
+      var d = resp.data[String(a.id)][String(t.id)];
+      var v = d && d.value !== null ? d.value : null;
+      vals.push(v);
+
+      var cls = '';
+      if (v !== null && testAvgs[t.id] > 0) {
+        var diff = ((v - testAvgs[t.id]) / testAvgs[t.id]) * 100;
+        if (diff > 10) cls = 'diff-high';
+        else if (diff < -10) cls = 'diff-low';
+      }
+      html += '<td class="' + cls + '">' + (v !== null ? v.toFixed(2) : '—') + '</td>';
+    });
+
+    // 差异列
+    var nonNulls = vals.filter(function(v) { return v !== null; });
+    if (nonNulls.length >= 2) {
+      var range = Math.max.apply(null, nonNulls) - Math.min.apply(null, nonNulls);
+      var avg = nonNulls.reduce(function(a, b) { return a + b; }, 0) / nonNulls.length;
+      var pct = avg > 0 ? ((range / avg) * 100).toFixed(0) : 0;
+      html += '<td><span class="badge ' + (pct > 15 ? 'badge-red' : 'badge-green') + '">±' + pct + '%</span></td>';
+    } else {
+      html += '<td>—</td>';
+    }
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  tableDiv.innerHTML = html;
+}
+
+// 初始加载
+(function() {
+  if (typeof echarts !== 'undefined') {
+    refreshCompare();
+  }
+})();
+</script>
+{% endblock %}

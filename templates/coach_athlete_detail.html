@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% block title %}{{ athlete.name }} — 运动员详情 — 运动员平台{% endblock %}
+{% block page_title %}🏃 {{ athlete.name }} 详细分析{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="animate-fade-up">
+
+  <!-- 基本信息卡片 -->
+  <div class="welcome-card">
+    <div class="athlete-name">🏅 {{ athlete.name }}</div>
+    <div class="athlete-meta">
+      <span>📌 {{ athlete.sport_type or '未设置' }} / {{ athlete.position or '未设置' }}</span>
+      <span>🎯 {{ athlete.level or '未知等级' }}</span>
+      <span>📏 {{ athlete.height_cm }}cm · {{ athlete.weight_kg }}kg</span>
+      <span>🎂 {{ athlete.age }}岁 · 训练 {{ athlete.training_years }}年</span>
+    </div>
+  </div>
+
+  <!-- 双栏：雷达图 + 趋势图 -->
+  <div class="dashboard-grid">
+    <!-- 雷达图：8 维度 -->
+    <div class="card card-accent-green">
+      <div class="card-header">
+        <span class="card-title">🎯 能力雷达图（T分）</span>
+      </div>
+      <div id="radarChart" style="width:100%;height:380px;"></div>
+    </div>
+
+    <!-- 趋势折线图 -->
+    <div class="card card-accent-teal">
+      <div class="card-header">
+        <span class="card-title">📈 {{ trend_test_name or '测试' }} 变化趋势</span>
+        <span class="badge badge-teal">{{ trend_unit }}</span>
+      </div>
+      {% if trend_data %}
+      <div id="trendChart" style="width:100%;height:380px;"></div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">📈</div>
+        <p>暂无趋势数据</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Z/T-score 明细表 -->
+  <div class="card card-accent-gold" style="margin-top:20px;">
+    <div class="card-header">
+      <span class="card-title">📋 Z/T-Score 明细</span>
+      <span class="badge badge-gold">{{ zt_scores|length }} 项</span>
+    </div>
+    {% if zt_scores %}
+    <div style="overflow-x:auto;">
+      <table class="zt-table">
+        <thead>
+          <tr>
+            <th>测试项目</th>
+            <th>类别</th>
+            <th>成绩</th>
+            <th>单位</th>
+            <th>队均值</th>
+            <th>Z-Score</th>
+            <th>T-Score</th>
+            <th>评估</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for z in zt_scores %}
+          <tr>
+            <td><strong>{{ z.test_name }}</strong></td>
+            <td><span class="badge badge-teal">{{ z.category }}</span></td>
+            <td>{{ z.raw_value }}</td>
+            <td>{{ z.unit }}</td>
+            <td>{{ z.team_mean or '—' }}</td>
+            <td>{{ z.z_score if z.z_score is not none else '—' }}</td>
+            <td>
+              <span class="t-score-badge {% if z.t_score is not none %}{% if z.t_score >= 60 %}t-high{% elif z.t_score >= 50 %}t-mid{% elif z.t_score >= 40 %}t-ok{% else %}t-low{% endif %}{% endif %}">
+                {{ z.t_score if z.t_score is not none else '—' }}
+              </span>
+            </td>
+            <td>
+              {% if z.t_score is not none %}
+                {% if z.t_score >= 60 %}
+                <span class="badge" style="background:rgba(76,175,80,.2);color:#4caf50;">优秀</span>
+                {% elif z.t_score >= 50 %}
+                <span class="badge" style="background:rgba(160,192,64,.2);color:#a0c040;">良好</span>
+                {% elif z.t_score >= 40 %}
+                <span class="badge" style="background:rgba(255,152,0,.2);color:#ff9800;">一般</span>
+                {% else %}
+                <span class="badge" style="background:rgba(229,57,53,.2);color:#e53935;">需提升</span>
+                {% endif %}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <p>暂无测试记录</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- AI 诊断建议 -->
+  <div class="card card-accent-green" style="margin-top:20px;">
+    <div class="card-header">
+      <span class="card-title">🤖 AI 诊断建议</span>
+      <a href="{{ url_for('ai_chat') }}" class="btn btn-ghost btn-sm">详细分析 →</a>
+    </div>
+    <div style="font-size:0.9rem;line-height:1.8;color:var(--text-secondary);">
+      {% set strengths = [] %}
+      {% set weaknesses = [] %}
+      {% for z in zt_scores %}
+        {% if z.t_score is not none %}
+          {% if z.t_score >= 60 %}
+            {% set _ = strengths.append(z.test_name) %}
+          {% elif z.t_score < 40 %}
+            {% set _ = weaknesses.append(z.test_name) %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+
+      <p><strong>🔍 综合分析：</strong></p>
+      <ul style="margin:8px 0;padding-left:20px;">
+        {% if strengths %}
+        <li>🏆 <strong>优势领域：</strong>{{ strengths[:5]|join('、') }}{% if strengths|length > 5 %}等{{ strengths|length }}项{% endif %} — T分均超过60，表现优异</li>
+        {% endif %}
+        {% if weaknesses %}
+        <li style="color:var(--danger);">⚠️ <strong>需关注：</strong>{{ weaknesses|join('、') }} — T分低于40，建议加强针对性训练</li>
+        {% endif %}
+        {% if not strengths and not weaknesses %}
+        <li>📊 整体表现处于团队平均水平，各项指标稳定</li>
+        {% endif %}
+        {% if strengths and not weaknesses %}
+        <li>✅ 整体表现良好，各项指标均在可接受范围</li>
+        {% endif %}
+      </ul>
+      <p style="margin-top:8px;">
+        💡 <em>提示：点击右上角「详细分析」让 AI 助手生成个性化训练建议</em>
+      </p>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;">
+    <a href="{{ url_for('coach_athletes') }}" class="btn btn-ghost">← 返回列表</a>
+    <a href="{{ url_for('coach_team_compare') }}" class="btn btn-secondary" style="margin-left:8px;">📊 横向对比</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  var radarData = {{ radar_data | tojson }};
+  var trendData = {{ trend_data | tojson }};
+  var trendName = '{{ trend_test_name }}';
+  var trendUnit = '{{ trend_unit }}';
+
+  /* ========== 雷达图 ========== */
+  var radarDom = document.getElementById('radarChart');
+  if (radarDom && typeof echarts !== 'undefined') {
+    var radarChart = echarts.init(radarDom);
+    var dims = [];
+    var scores = [];
+    for (var k in radarData) {
+      dims.push(k);
+      scores.push(radarData[k]);
+    }
+
+    var option = {
+      tooltip: {
+        backgroundColor: '#16213e',
+        borderColor: '#0f3460',
+        textStyle: { color: '#e8e8e8' }
+      },
+      legend: {
+        data: ['{{ athlete.name }}', '团队均值'],
+        textStyle: { color: '#a0a8b8' },
+        bottom: 0
+      },
+      radar: {
+        center: ['50%', '48%'],
+        radius: '65%',
+        indicator: dims.map(function(d) {
+          return { name: d, max: 80 };
+        }),
+        axisName: { color: '#a0a8b8', fontSize: 12 },
+        splitArea: {
+          areaStyle: { color: ['rgba(160,192,64,0.02)', 'rgba(160,192,64,0.04)'] }
+        },
+        splitLine: { lineStyle: { color: '#1e2d50' } },
+        axisLine: { lineStyle: { color: '#1e2d50' } }
+      },
+      series: [{
+        type: 'radar',
+        data: [
+          {
+            value: scores,
+            name: '{{ athlete.name }}',
+            areaStyle: { color: 'rgba(160,192,64,0.25)' },
+            lineStyle: { color: '#a0c040', width: 2 },
+            itemStyle: { color: '#a0c040' }
+          },
+          {
+            value: [50, 50, 50, 50, 50, 50, 50, 50],
+            name: '团队均值',
+            areaStyle: { color: 'rgba(192,192,96,0.1)' },
+            lineStyle: { color: '#c0c060', width: 1, type: 'dashed' },
+            itemStyle: { color: '#c0c060' }
+          }
+        ]
+      }]
+    };
+    radarChart.setOption(option);
+    window.addEventListener('resize', function() { radarChart.resize(); });
+  }
+
+  /* ========== 趋势折线图 + 回归线 ========== */
+  var trendDom = document.getElementById('trendChart');
+  if (trendDom && typeof echarts !== 'undefined' && trendData.length >= 2) {
+    var trendChart = echarts.init(trendDom);
+
+    var dates = [];
+    var values = [];
+    trendData.forEach(function(d) {
+      dates.push(d.date || '');
+      values.push(d.value);
+    });
+
+    // 简单线性回归
+    var n = values.length;
+    var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    for (var i = 0; i < n; i++) {
+      sumX += i;
+      sumY += values[i];
+      sumXY += i * values[i];
+      sumX2 += i * i;
+    }
+    var slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    var intercept = (sumY - slope * sumX) / n;
+    var regValues = [];
+    for (var i = 0; i < n; i++) {
+      regValues.push(intercept + slope * i);
+    }
+
+    var option = {
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: '#16213e',
+        borderColor: '#0f3460',
+        textStyle: { color: '#e8e8e8' }
+      },
+      legend: {
+        data: ['实测值', '趋势线'],
+        textStyle: { color: '#a0a8b8' },
+        top: 0
+      },
+      grid: {
+        left: '3%', right: '4%', bottom: '3%',
+        top: '40px', containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        data: dates,
+        axisLabel: { color: '#606878', fontSize: 10, rotate: 25 },
+        axisLine: { lineStyle: { color: '#1e2d50' } }
+      },
+      yAxis: {
+        type: 'value',
+        name: trendUnit,
+        nameTextStyle: { color: '#606878' },
+        axisLabel: { color: '#606878' },
+        splitLine: { lineStyle: { color: '#1e2d50' } }
+      },
+      series: [
+        {
+          name: '实测值',
+          type: 'line',
+          data: values,
+          smooth: true,
+          lineStyle: { color: '#a0c040', width: 2 },
+          itemStyle: { color: '#a0c040' },
+          symbol: 'circle',
+          symbolSize: 8
+        },
+        {
+          name: '趋势线',
+          type: 'line',
+          data: regValues,
+          lineStyle: { color: '#c0c060', width: 1.5, type: 'dashed' },
+          itemStyle: { color: '#c0c060' },
+          symbol: 'none'
+        }
+      ],
+      color: ['#a0c040', '#c0c060']
+    };
+    trendChart.setOption(option);
+    window.addEventListener('resize', function() { trendChart.resize(); });
+  }
+})();
+</script>
+{% endblock %}
