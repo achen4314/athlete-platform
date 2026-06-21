@@ -400,7 +400,7 @@ class PDFReport:
 
         if test_counter:
             top_test_id = test_counter.most_common(1)[0][0]
-            trend = self.analyzer.analyze_trends(athlete_id, top_test_id, db.session)
+            trend = self.analyzer.analyze_trends(athlete_id, top_test_id, db_session)
 
             direction_map = {
                 "improving": "📈 上升趋势",
