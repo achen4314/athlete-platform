@@ -50,6 +50,7 @@
     color: var(--text, #e0e0e0);
     padding: 8px 12px;
     font-size: 0.85rem;
+    font-family: inherit;
   }
   .upload-form textarea { resize: vertical; min-height: 36px; }
   .upload-form input[type="file"] { padding: 6px 8px; }
@@ -63,6 +64,7 @@
     font-weight: 700;
     cursor: pointer;
     font-size: 0.88rem;
+    font-family: inherit;
     transition: opacity 0.2s;
   }
   .btn-upload:hover { opacity: 0.85; }
@@ -92,6 +94,21 @@
     margin-top: 4px;
   }
 
+  /* 测试类型说明 */
+  .test-type-hints {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .test-type-hint {
+    font-size: 0.68rem;
+    color: var(--text-muted, #888);
+    background: rgba(255,255,255,0.03);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
   /* 视频列表 */
   .video-grid {
     display: grid;
@@ -118,6 +135,11 @@
     font-size: 3rem;
     position: relative;
   }
+  .video-card-preview .preview-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
   .video-card-body {
     padding: 14px 16px;
   }
@@ -139,6 +161,7 @@
     padding: 0 16px 14px;
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
   }
 
   /* 状态标签 */
@@ -162,6 +185,7 @@
     border: none;
     cursor: pointer;
     font-weight: 600;
+    font-family: inherit;
   }
   .btn-primary { background: var(--primary-green, #a0c040); color: #1a1a2e; }
   .btn-outline {
@@ -170,7 +194,19 @@
     color: var(--text, #e0e0e0);
   }
   .btn-outline:hover { border-color: var(--primary-green, #a0c040); }
-  .btn-danger { background: rgba(255,68,68,0.15); color: #f44; }
+  .btn-analyze {
+    background: rgba(0,150,255,0.15);
+    color: #0096ff;
+    border: 1px solid rgba(0,150,255,0.3);
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-family: inherit;
+  }
+  .btn-analyze:hover { background: rgba(0,150,255,0.25); }
+  .btn-analyze:disabled { opacity: .4; cursor: not-allowed; }
 
   .empty-state {
     text-align: center;
@@ -178,6 +214,12 @@
     color: var(--text-muted, #888);
   }
   .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+  .divider {
+    height: 1px;
+    background: rgba(255,255,255,0.05);
+    margin: 24px 0;
+  }
 </style>
 {% endblock %}
 
@@ -190,16 +232,16 @@
     <form class="upload-form" id="uploadForm" enctype="multipart/form-data">
       <div class="form-group">
         <label>视频文件</label>
-        <input type="file" name="file" id="videoFile" accept="video/*" required>
+        <input type="file" name="file" id="videoFile" accept="video/mp4,video/mov,video/avi,video/webm,video/mkv" required>
       </div>
       <div class="form-group">
         <label>测试类型</label>
         <select name="test_type" id="testType">
           <option value="">— 自动检测 —</option>
-          <option value="sprint">短跑 / 冲刺</option>
-          <option value="jump">跳跃（纵跳/跳远）</option>
-          <option value="squat">深蹲</option>
-          <option value="general">通用分析</option>
+          <option value="sprint">🏃 跑步分析（步频/步幅）</option>
+          <option value="jump">🦘 纵跳分析（高度/起跳角）</option>
+          <option value="squat">🏋️ 力量举/深蹲（关节角/杠铃速度）</option>
+          <option value="general">📋 通用姿态分析</option>
         </select>
       </div>
       <div class="form-group">
@@ -210,6 +252,11 @@
         ⬆ 上传并分析
       </button>
     </form>
+    <div class="test-type-hints">
+      <span class="test-type-hint">🏃 跑步：分析步频、步幅、着地时间、前倾角</span>
+      <span class="test-type-hint">🦘 纵跳：分析腾空高度、起跳速度、起跳角度</span>
+      <span class="test-type-hint">🏋️ 深蹲：分析关节角度、对称性、杠铃速度</span>
+    </div>
     <div class="upload-progress" id="uploadProgress">
       <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
       <div class="progress-text" id="progressText">准备上传...</div>
@@ -222,23 +269,20 @@
   {% if videos %}
   <div class="video-grid">
     {% for v in videos %}
-    <div class="video-card">
+    <div class="video-card" id="videoCard{{ v.video_id }}">
       <div class="video-card-preview">
-        {% if v.status == 'done' %}
-          🎬
-        {% elif v.status == 'processing' %}
-          ⏳
-        {% elif v.status == 'error' %}
-          ⚠️
-        {% else %}
-          📹
-        {% endif %}
+        {% if v.status == 'done' %}🎬
+        {% elif v.status == 'processing' %}⏳
+        {% elif v.status == 'error' %}⚠️
+        {% else %}📹{% endif %}
+        <span class="preview-badge">
+          <span class="status-badge status-{{ v.status }}">{{ v.status_label }}</span>
+        </span>
       </div>
       <div class="video-card-body">
         <div class="video-card-title">{{ v.original_filename or v.filename }}</div>
         <div class="video-card-meta">
-          <span class="status-badge status-{{ v.status }}">{{ v.status_label }}</span>
-          {% if v.test_type %}<span>{{ v.test_type }}</span>{% endif %}
+          {% if v.test_type %}<span>类型: {{ v.test_type }}</span>{% endif %}
           <span>{{ v.file_size_mb }} MB</span>
           {% if v.duration_seconds %}<span>{{ "%.1f"|format(v.duration_seconds) }}s</span>{% endif %}
         </div>
@@ -247,8 +291,11 @@
         <a href="{{ url_for('video_player_page', video_id=v.video_id) }}" class="btn-sm btn-primary">
           {% if v.status == 'done' %}▶ 查看{% else %}📋 详情{% endif %}
         </a>
+        {% if v.status in ('uploaded', 'error') %}
+        <button class="btn-sm btn-analyze" onclick="analyzeVideo('{{ v.video_id }}', this)">▶ 分析</button>
+        {% endif %}
         {% if v.status == 'error' %}
-        <button class="btn-sm btn-outline" onclick="reprocessVideo('{{ v.video_id }}')">🔄 重试</button>
+        <button class="btn-sm btn-outline" onclick="analyzeVideo('{{ v.video_id }}', this)">🔄 重试</button>
         {% endif %}
       </div>
     </div>
@@ -324,7 +371,7 @@
 
       xhr.upload.onprogress = function(e) {
         if (e.lengthComputable) {
-          const pct = Math.round((e.loaded / e.total) * 100);
+          const pct = Math.round((e.loaded / e.total) * 50);  // 前半段是上传
           progressFill.style.width = pct + '%';
           progressText.textContent = '上传中 ' + pct + '%';
         }
@@ -332,8 +379,14 @@
 
       xhr.onload = function() {
         if (xhr.status === 201) {
+          progressFill.style.width = '100%';
+          progressText.textContent = '✅ 上传成功，正在分析姿态...';
           const resp = JSON.parse(xhr.responseText);
-          showToast('✅ 上传成功！视频正在分析中...', 'success');
+          if (resp.video && resp.video.status === 'done') {
+            showToast('✅ 上传并分析完成！', 'success');
+          } else {
+            showToast('✅ 上传成功！视频分析中...', 'success');
+          }
           setTimeout(function() { location.reload(); }, 1500);
         } else {
           let errMsg = '上传失败';
@@ -364,20 +417,42 @@
   });
 })();
 
-async function reprocessVideo(videoId) {
-  if (!confirm('确定重新分析此视频？')) return;
+// ========== 视频分析函数 ==========
+async function analyzeVideo(videoId, btn) {
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ 分析中...';
+  }
+
   try {
-    const resp = await fetch('/api/videos/' + videoId + '/reprocess', { method: 'POST' });
+    const resp = await fetch('/api/videos/' + videoId + '/analyze', { method: 'POST' });
     const data = await resp.json();
+
     if (data.success) {
-      showToast('✅ 重新分析已完成', 'success');
-      location.reload();
+      showToast('✅ 分析完成', 'success');
+      setTimeout(() => location.reload(), 800);
+    } else if (data.status === 'processing') {
+      showToast('⏳ 视频正在分析中...', 'info');
+      setTimeout(() => location.reload(), 3000);
     } else {
-      showToast('❌ 重新分析失败', 'error');
+      showToast('⚠️ 分析失败: ' + (data.message || data.error || ''), 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '▶ 重新分析';
+      }
     }
   } catch(e) {
-    showToast('❌ 请求失败', 'error');
+    showToast('❌ 请求失败: ' + e.message, 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '▶ 分析';
+    }
   }
+}
+
+async function reprocessVideo(videoId) {
+  if (!confirm('确定重新分析此视频？')) return;
+  analyzeVideo(videoId, event ? event.target : null);
 }
 </script>
 {% endblock %}

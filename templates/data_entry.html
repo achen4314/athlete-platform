@@ -4,6 +4,13 @@
 
 {% block content %}
 <div class="data-entry-form animate-fade-up">
+  <!-- 表单提交 loading 遮罩 -->
+  <div class="form-loading-overlay" id="formLoadingOverlay" style="display:none;">
+    <div class="form-loading-spinner">
+      <div class="spinner"></div>
+      <p style="margin-top:12px;color:var(--text-secondary);font-size:0.85rem;">保存中...</p>
+    </div>
+  </div>
 
   <!-- Tab 切换 -->
   <div class="tabs" id="entryTabs">
@@ -25,7 +32,7 @@
           <div class="form-group">
             <label class="form-label" for="body_weight">
               体重 (kg) *
-              <span class="tooltip-trigger" data-tip="晨起空腹测量，穿轻便衣物，排空大小便后称重。建议每周同一天同一时间测量。">❓</span>
+              <span class="tooltip-trigger" data-tip="晨起空腹、排尿后、仅穿内衣测量。每周固定一天同一时间。">❓</span>
             </label>
             <input type="number" id="body_weight" name="weight_kg" class="form-input"
                    placeholder="例：72.5" step="0.1" min="30" max="200" required>
@@ -34,7 +41,7 @@
           <div class="form-group">
             <label class="form-label" for="body_fat">
               体脂率 (%)
-              <span class="tooltip-trigger" data-tip="建议使用生物电阻抗体脂秤，晨起空腹测量。皮褶法需由专业人士操作。测量前4小时避免剧烈运动和大量饮水。">❓</span>
+              <span class="tooltip-trigger" data-tip="使用生物电阻抗法(BIA)或皮褶卡尺测量。晨起空腹、测量前4小时不运动不饮大量水。">❓</span>
             </label>
             <input type="number" id="body_fat" name="body_fat_pct" class="form-input"
                    placeholder="例：12.5" step="0.1" min="2" max="50">
@@ -46,7 +53,7 @@
           <div class="form-group">
             <label class="form-label" for="body_muscle">
               肌肉量 (kg)
-              <span class="tooltip-trigger" data-tip="通过生物电阻抗或 DEXA 扫描获得。肌肉量是评估力量训练效果的重要指标，建议每月追踪。">❓</span>
+              <span class="tooltip-trigger" data-tip="同体脂率测量条件，由体成分分析仪自动计算。">❓</span>
             </label>
             <input type="number" id="body_muscle" name="muscle_mass" class="form-input"
                    placeholder="例：35.0" step="0.1" min="10" max="80">
@@ -55,7 +62,7 @@
           <div class="form-group">
             <label class="form-label" for="body_rhr">
               静息心率 (bpm)
-              <span class="tooltip-trigger" data-tip="早晨醒来后躺姿测量1分钟，或使用心率带/手表读取晨起静息值。持续升高可能是过度训练的信号。">❓</span>
+              <span class="tooltip-trigger" data-tip="晨起、静卧5分钟后测量。正常范围 40-80 bpm，运动员偏低属正常。">❓</span>
             </label>
             <input type="number" id="body_rhr" name="resting_hr" class="form-input"
                    placeholder="例：58" step="1" min="30" max="120">
@@ -65,13 +72,19 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label" for="body_bp_sys">收缩压 (mmHg)</label>
+            <label class="form-label" for="body_bp_sys">
+              收缩压 (mmHg)
+              <span class="tooltip-trigger" data-tip="静坐5分钟后测量，手臂与心脏齐平。正常 <120/80。">❓</span>
+            </label>
             <input type="number" id="body_bp_sys" name="blood_pressure_sys" class="form-input"
                    placeholder="例：120" step="1" min="70" max="200">
             <div class="form-error-msg">请输入 70-200 之间的数值</div>
           </div>
           <div class="form-group">
-            <label class="form-label" for="body_bp_dia">舒张压 (mmHg)</label>
+            <label class="form-label" for="body_bp_dia">
+              舒张压 (mmHg)
+              <span class="tooltip-trigger" data-tip="静坐5分钟后测量，手臂与心脏齐平。正常 <80。">❓</span>
+            </label>
             <input type="number" id="body_bp_dia" name="blood_pressure_dia" class="form-input"
                    placeholder="例：80" step="1" min="40" max="130">
             <div class="form-error-msg">请输入 40-130 之间的数值</div>
@@ -81,7 +94,7 @@
         <div class="form-group">
           <label class="form-label" for="body_vo2">
             VO₂max (mL/kg/min)
-            <span class="tooltip-trigger" data-tip="需专业气体分析设备测试（金标准），或使用12分钟跑（Cooper测试）、YoYo测试等间接估算。反映有氧耐力上限。">❓</span>
+            <span class="tooltip-trigger" data-tip="通过最大摄氧量测试或次最大测试估算。分级折返跑/功率车/跑台均可。">❓</span>
           </label>
           <input type="number" id="body_vo2" name="vo2_max" class="form-input"
                  placeholder="例：55.0" step="0.1" min="20" max="90">
@@ -107,7 +120,10 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="test_name">测试项目 *</label>
+          <label class="form-label" for="test_name">
+            测试项目 *
+            <span class="tooltip-trigger" data-tip="选择标准体能测试项目。确保测试前充分热身，按标准流程执行。">❓</span>
+          </label>
           <select id="test_name" name="test_id" class="form-input" required>
             <option value="">— 请选择测试项目 —</option>
             {% for test in tests %}
@@ -118,7 +134,10 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label" for="test_value">测试值 *</label>
+            <label class="form-label" for="test_value">
+              测试值 *
+              <span class="tooltip-trigger" data-tip="输入原始测量值。注意单位（秒/厘米/公斤/次/级/分/%）。">❓</span>
+            </label>
             <input type="text" id="test_value" name="raw_value" class="form-input"
                    placeholder="例：11.2 (秒) 或 120 (kg)" required>
           </div>
@@ -166,7 +185,10 @@
             <input type="date" id="train_date" name="session_date" class="form-input" required>
           </div>
           <div class="form-group">
-            <label class="form-label" for="train_duration">训练时长（分钟）</label>
+            <label class="form-label" for="train_duration">
+              训练时长（分钟）
+              <span class="tooltip-trigger" data-tip="从热身开始到放松结束的总时间。">❓</span>
+            </label>
             <input type="number" id="train_duration" name="duration_min" class="form-input"
                    placeholder="例：60" step="1" min="5" max="480">
             <div class="form-error-msg">请输入 5-480 之间的数值</div>
@@ -175,7 +197,10 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label" for="train_intensity">训练强度</label>
+            <label class="form-label" for="train_intensity">
+              训练强度
+              <span class="tooltip-trigger" data-tip="低=轻松对话/中=短句交流/高=无法说话">❓</span>
+            </label>
             <select id="train_intensity" name="intensity" class="form-input">
               <option value="low">🟢 低强度</option>
               <option value="moderate" selected>🟡 中等强度</option>
@@ -184,7 +209,10 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label" for="train_rpe">RPE（自感劳累 1-10）</label>
+            <label class="form-label" for="train_rpe">
+              RPE（自感劳累 1-10）
+              <span class="tooltip-trigger" data-tip="自觉劳累度: 1=完全轻松, 5=中等, 7=吃力, 10=力竭">❓</span>
+            </label>
             <select id="train_rpe" name="rpe" class="form-input">
               <option value="">— 选择 RPE —</option>
               {% for i in range(1, 11) %}
@@ -196,12 +224,18 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label" for="train_distance">距离 (km)</label>
+            <label class="form-label" for="train_distance">
+              距离 (km)
+              <span class="tooltip-trigger" data-tip="GPS或跑道计圈的总距离。">❓</span>
+            </label>
             <input type="number" id="train_distance" name="total_distance_km" class="form-input"
                    placeholder="例：5.0" step="0.1" min="0" max="200">
           </div>
           <div class="form-group">
-            <label class="form-label" for="train_hr">平均心率 (bpm)</label>
+            <label class="form-label" for="train_hr">
+              平均心率 (bpm)
+              <span class="tooltip-trigger" data-tip="训练全程心率的算术平均值。">❓</span>
+            </label>
             <input type="number" id="train_hr" name="hr_avg" class="form-input"
                    placeholder="例：145" step="1" min="40" max="220">
             <div class="form-error-msg">请输入 40-220 之间的数值</div>
@@ -322,6 +356,14 @@
 
 {% block scripts %}
 <script>
+/* ========== 表单提交 loading ========== */
+function showFormLoading() {
+  document.getElementById('formLoadingOverlay').style.display = 'flex';
+}
+function hideFormLoading() {
+  document.getElementById('formLoadingOverlay').style.display = 'none';
+}
+
 /* ========== Tooltip 指引 ========== */
 (function() {
   var triggers = document.querySelectorAll('.tooltip-trigger');
@@ -437,6 +479,8 @@ function handleBodySubmit(e) {
     return false;
   }
 
+  showFormLoading();
+
   // 提交表单
   var form = document.getElementById('bodyForm');
   var formData = new FormData(form);
@@ -447,6 +491,7 @@ function handleBodySubmit(e) {
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {
+    hideFormLoading();
     if (data.success) {
       showToast('✅ 身体指标已保存！', 'success');
       form.reset();
@@ -455,6 +500,7 @@ function handleBodySubmit(e) {
     }
   })
   .catch(function() {
+    hideFormLoading();
     showToast('❌ 网络错误，请稍后重试', 'error');
   });
 
@@ -485,6 +531,8 @@ function handleTestSubmit(e) {
   }
   document.getElementById('test_date').classList.remove('error');
 
+  showFormLoading();
+
   var form = document.getElementById('testForm');
   var formData = new FormData(form);
 
@@ -494,6 +542,7 @@ function handleTestSubmit(e) {
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {
+    hideFormLoading();
     if (data.success) {
       showToast('✅ 测试记录已保存！', 'success');
       form.reset();
@@ -502,6 +551,7 @@ function handleTestSubmit(e) {
     }
   })
   .catch(function() {
+    hideFormLoading();
     showToast('❌ 网络错误，请稍后重试', 'error');
   });
 
@@ -544,6 +594,8 @@ function handleTrainingSubmit(e) {
     return false;
   }
 
+  showFormLoading();
+
   var form = document.getElementById('trainingForm');
   var formData = new FormData(form);
 
@@ -553,6 +605,7 @@ function handleTrainingSubmit(e) {
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {
+    hideFormLoading();
     if (data.success) {
       showToast('✅ 训练日志已保存！', 'success');
       form.reset();
@@ -561,6 +614,7 @@ function handleTrainingSubmit(e) {
     }
   })
   .catch(function() {
+    hideFormLoading();
     showToast('❌ 网络错误，请稍后重试', 'error');
   });
 
@@ -583,6 +637,8 @@ function handleInjurySubmit(e) {
     return false;
   }
 
+  showFormLoading();
+
   var form = document.getElementById('injuryForm');
   var formData = new FormData(form);
 
@@ -592,6 +648,7 @@ function handleInjurySubmit(e) {
   })
   .then(function(r) { return r.json(); })
   .then(function(data) {
+    hideFormLoading();
     if (data.success) {
       showToast('✅ 伤病记录已保存！', 'success');
       form.reset();
@@ -600,6 +657,7 @@ function handleInjurySubmit(e) {
     }
   })
   .catch(function() {
+    hideFormLoading();
     showToast('❌ 网络错误，请稍后重试', 'error');
   });
 

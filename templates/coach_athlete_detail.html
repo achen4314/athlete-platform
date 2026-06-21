@@ -148,9 +148,16 @@
     </div>
   </div>
 
-  <div style="margin-top:20px;">
+  <div style="margin-top:20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <a href="{{ url_for('coach_athletes') }}" class="btn btn-ghost">← 返回列表</a>
-    <a href="{{ url_for('coach_team_compare') }}" class="btn btn-secondary" style="margin-left:8px;">📊 横向对比</a>
+    <a href="{{ url_for('coach_team_compare') }}" class="btn btn-secondary">📊 横向对比</a>
+    <a href="{{ url_for('api_coach_athlete_report_pdf', athlete_id=athlete.id) }}"
+       class="btn btn-primary"
+       style="background:var(--primary,#a0c040);color:#fff;"
+       target="_blank"
+       title="下载 {{ athlete.name }} 的综合分析报告 PDF">
+      📄 导出 PDF 报告
+    </a>
   </div>
 
 </div>

@@ -5,6 +5,7 @@
 
 import json
 import logging
+import os
 from datetime import datetime, date, timedelta
 from functools import wraps
 
@@ -981,6 +982,15 @@ def api_upload_video():
 
     logger.info("视频记录已创建: id=%d, video_id=%s", video.id, video.video_id)
 
+    # 上传成功后自动触发姿态分析
+    from video_worker import process_single_video
+    try:
+        process_single_video(video.id, app, generate_annotated=True)
+        db.session.refresh(video)
+        logger.info("视频自动分析完成: id=%d, status=%s", video.id, video.status)
+    except Exception as e:
+        logger.warning("视频自动分析失败（不影响上传）: %s", e)
+
     return jsonify({
         "success": True,
         "video": video.to_dict(),
@@ -1061,6 +1071,90 @@ def api_video_status(video_id):
     })
 
 
+@app.route("/api/videos/<video_id>/analyze", methods=["POST"])
+@login_required
+def api_analyze_video(video_id):
+    """触发视频姿态分析任务"""
+    video = Video.query.filter_by(video_id=video_id).first()
+    if not video:
+        return jsonify({"error": "视频不存在"}), 404
+
+    # 权限检查：运动员只能分析自己的视频
+    user = g.current_user
+    if user.role == "athlete":
+        athlete = Athlete.query.filter_by(user_id=user.id).first()
+        if not athlete or video.athlete_id != athlete.id:
+            return jsonify({"error": "权限不足"}), 403
+
+    if video.status == 'processing':
+        return jsonify({
+            "success": False,
+            "message": "视频正在分析中，请稍候...",
+            "status": video.status,
+        }), 409
+
+    # 发起后台分析
+    from video_worker import process_single_video
+
+    # 重置状态
+    video.status = "uploaded"
+    video.analysis_results = ""
+    db.session.commit()
+
+    # 同步处理（生产环境建议改为后台任务）
+    try:
+        success = process_single_video(video.id, app, generate_annotated=True)
+        
+        # 重新加载视频记录以获取最新状态
+        db.session.refresh(video)
+        
+        return jsonify({
+            "success": success,
+            "status": video.status,
+            "status_label": video.status_label,
+            "message": "分析完成" if success else "分析失败",
+        })
+    except Exception as e:
+        logger.exception("视频分析异常: %s", video_id)
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "status": video.status,
+        }), 500
+
+
+@app.route("/api/videos/<video_id>/result")
+@login_required
+def api_video_result(video_id):
+    """获取视频分析结果（完整 JSON）"""
+    video = Video.query.filter_by(video_id=video_id).first()
+    if not video:
+        return jsonify({"error": "视频不存在"}), 404
+
+    # 权限检查
+    user = g.current_user
+    if user.role == "athlete":
+        athlete = Athlete.query.filter_by(user_id=user.id).first()
+        if not athlete or video.athlete_id != athlete.id:
+            return jsonify({"error": "权限不足"}), 403
+
+    parsed = video.parsed_results
+    return jsonify({
+        "video_id": video.video_id,
+        "athlete_id": video.athlete_id,
+        "status": video.status,
+        "status_label": video.status_label,
+        "test_type": video.test_type,
+        "duration_seconds": video.duration_seconds,
+        "original_filename": video.original_filename,
+        "created_at": video.created_at.isoformat() if video.created_at else None,
+        "analysis_results": parsed,
+        "metrics": parsed.get("metrics", {}),
+        "keyframe_data": parsed.get("keyframe_data", []),
+        "is_mock": parsed.get("is_mock", False),
+    })
+
+
 @app.route("/api/videos/<video_id>/reprocess", methods=["POST"])
 @login_required
 def api_reprocess_video(video_id):
@@ -1076,11 +1170,12 @@ def api_reprocess_video(video_id):
     db.session.commit()
 
     # 同步处理（简单场景）
-    success = process_single_video(video.id, app)
+    success = process_single_video(video.id, app, generate_annotated=True)
 
     return jsonify({
         "success": success,
         "status": video.status,
+        "status_label": video.status_label,
     })
 
 
@@ -1281,6 +1376,13 @@ def api_update_reference(test_name):
 
 # ==================== PDF 报告导出 API ====================
 
+@app.route("/api/coach/athlete/<int:athlete_id>/report/pdf")
+@role_required("coach", "doctor", "analyst", "admin")
+def api_coach_athlete_report_pdf(athlete_id):
+    """教练端专用 — 导出运动员 PDF 报告（需教练角色）"""
+    return api_athlete_report_pdf(athlete_id)
+
+
 @app.route("/api/athlete/<int:athlete_id>/report/pdf")
 @login_required
 def api_athlete_report_pdf(athlete_id):
@@ -1325,10 +1427,40 @@ def inject_brand():
 
 # ==================== 应用入口 ====================
 
-if __name__ == "__main__":
-    # 初始化数据库
-    with app.app_context():
-        init_db()
+# 生产环境自动初始化（gunicorn 不会走 __main__）
+with app.app_context():
+    db.create_all()
+    FitnessTest.seed_defaults()
+    # 自动创建管理员
+    admin_user = app.config.get("ADMIN_USERNAME", "admin")
+    admin_pass = app.config.get("ADMIN_PASSWORD", "admin123")
+    if not User.query.filter_by(username=admin_user).first():
+        admin = User(
+            username=admin_user,
+            password_hash=generate_password_hash(admin_pass),
+            role="admin",
+            display_name="系统管理员",
+        )
+        db.session.add(admin)
+        db.session.commit()
+        logger.info("生产环境: 数据库已初始化，管理员已创建")
+    else:
+        logger.info("生产环境: 数据库已存在，跳过初始化")
 
-    # 启动应用
-    app.run(host="0.0.0.0", port=5000, debug=app.config.get("DEBUG", True))
+if __name__ == "__main__":
+    db.create_all()
+    FitnessTest.seed_defaults()
+    admin_user = app.config.get("ADMIN_USERNAME", "admin")
+    admin_pass = app.config.get("ADMIN_PASSWORD", "admin123")
+    if not User.query.filter_by(username=admin_user).first():
+        admin = User(
+            username=admin_user,
+            password_hash=generate_password_hash(admin_pass),
+            role="admin",
+            display_name="系统管理员",
+        )
+        db.session.add(admin)
+        db.session.commit()
+
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=app.config.get("DEBUG", True))

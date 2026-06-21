@@ -122,6 +122,7 @@
         });
 
         setTimeout(function() {
+          toast.classList.add('toast-hiding');
           toast.classList.remove('show');
           setTimeout(function() { toast.remove(); }, 400);
         }, 3000);
