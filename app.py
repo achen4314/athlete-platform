@@ -1427,40 +1427,44 @@ def inject_brand():
 
 # ==================== 应用入口 ====================
 
-# 生产环境自动初始化（gunicorn 不会走 __main__）
-with app.app_context():
-    db.create_all()
-    FitnessTest.seed_defaults()
-    # 自动创建管理员
-    admin_user = app.config.get("ADMIN_USERNAME", "admin")
-    admin_pass = app.config.get("ADMIN_PASSWORD", "admin123")
-    if not User.query.filter_by(username=admin_user).first():
-        admin = User(
-            username=admin_user,
-            password_hash=generate_password_hash(admin_pass),
-            role="admin",
-            display_name="系统管理员",
-        )
-        db.session.add(admin)
-        db.session.commit()
-        logger.info("生产环境: 数据库已初始化，管理员已创建")
-    else:
-        logger.info("生产环境: 数据库已存在，跳过初始化")
+# 数据库初始化（兼容 gunicorn 和直接运行）
+_db_initialized = False
+
+def _ensure_db():
+    """确保数据库已初始化（幂等，首次请求时自动调用）"""
+    global _db_initialized
+    if _db_initialized:
+        return
+    try:
+        db.create_all()
+        FitnessTest.seed_defaults()
+        admin_user = app.config.get("ADMIN_USERNAME", "admin")
+        admin_pass = app.config.get("ADMIN_PASSWORD", "admin123")
+        if not User.query.filter_by(username=admin_user).first():
+            admin = User(
+                username=admin_user,
+                password_hash=generate_password_hash(admin_pass),
+                role="admin",
+                display_name="系统管理员",
+            )
+            db.session.add(admin)
+            db.session.commit()
+        _db_initialized = True
+        logger.info("数据库初始化完成")
+    except Exception as e:
+        logger.warning("数据库初始化失败（将重试）: %s", e)
+
+# 立即尝试初始化
+_ensure_db()
+
+@app.before_request
+def _init_db_on_first_request():
+    """首次请求时确保数据库已初始化"""
+    _ensure_db()
+
 
 if __name__ == "__main__":
-    db.create_all()
-    FitnessTest.seed_defaults()
-    admin_user = app.config.get("ADMIN_USERNAME", "admin")
-    admin_pass = app.config.get("ADMIN_PASSWORD", "admin123")
-    if not User.query.filter_by(username=admin_user).first():
-        admin = User(
-            username=admin_user,
-            password_hash=generate_password_hash(admin_pass),
-            role="admin",
-            display_name="系统管理员",
-        )
-        db.session.add(admin)
-        db.session.commit()
+    _ensure_db()
 
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=app.config.get("DEBUG", True))
