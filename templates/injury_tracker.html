@@ -1,0 +1,809 @@
+{% extends "base.html" %}
+{% block title %}伤病追踪 — 运动员平台{% endblock %}
+{% block page_title %}❤️ 伤病追踪看板{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ===== 伤病追踪看板专用样式 ===== */
+.injury-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 900px) {
+  .injury-layout { grid-template-columns: 1fr; }
+}
+
+/* --- 人体图 --- */
+.body-map-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+}
+
+.body-diagram-container {
+  display: flex;
+  gap: 40px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.body-view {
+  text-align: center;
+}
+
+.body-view-title {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* SVG 人体图 */
+.body-svg {
+  width: 160px;
+  height: 400px;
+}
+
+/* 可点击热点 */
+.body-hotspot {
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.body-hotspot:hover {
+  filter: drop-shadow(0 0 6px var(--brand-gold));
+}
+
+.body-hotspot.has-injury {
+  fill: #e53935;
+  animation: injury-pulse 1.5s ease-in-out infinite;
+}
+
+.body-hotspot.recovered {
+  fill: #4caf50;
+}
+
+.body-hotspot.no-injury {
+  fill: transparent;
+}
+
+@keyframes injury-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.body-legend {
+  display: flex;
+  gap: 20px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 12px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.legend-dot.active { background: #e53935; }
+.legend-dot.recovered { background: #4caf50; }
+.legend-dot.clean { background: transparent; border: 1px solid var(--border-light); }
+
+/* --- 时间线 --- */
+.timeline-card {
+  overflow-y: auto;
+  max-height: 480px;
+}
+
+.timeline {
+  position: relative;
+  padding-left: 30px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border-light);
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -24px;
+  top: 6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--border-light);
+  background: var(--bg-card);
+}
+
+.timeline-item.status-active::before {
+  background: #e53935;
+  border-color: #e53935;
+  box-shadow: 0 0 8px rgba(229,57,53,.5);
+}
+
+.timeline-item.status-recovering::before {
+  background: #ff9800;
+  border-color: #ff9800;
+  box-shadow: 0 0 8px rgba(255,152,0,.5);
+}
+
+.timeline-item.status-recovered::before {
+  background: #4caf50;
+  border-color: #4caf50;
+  box-shadow: 0 0 8px rgba(76,175,80,.5);
+}
+
+.timeline-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.timeline-card-inner {
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  border-left: 3px solid;
+}
+
+.timeline-item.status-active .timeline-card-inner {
+  border-left-color: #e53935;
+}
+
+.timeline-item.status-recovering .timeline-card-inner {
+  border-left-color: #ff9800;
+}
+
+.timeline-item.status-recovered .timeline-card-inner {
+  border-left-color: #4caf50;
+}
+
+.timeline-body-part {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.timeline-type {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin: 2px 0;
+}
+
+.timeline-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* 恢复进度条 */
+.recovery-progress {
+  margin-top: 8px;
+}
+
+.progress-bar-bg {
+  height: 6px;
+  background: var(--bg-deep);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.progress-bar-fill.green { background: #4caf50; }
+.progress-bar-fill.orange { background: #ff9800; }
+.progress-bar-fill.red { background: #e53935; }
+
+.progress-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* --- 按钮 --- */
+.toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+/* --- 模态框 --- */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0,0,0,.6);
+}
+
+.modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--brand-green);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.form-select {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  transition: var(--transition);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a0a8b8' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--brand-green);
+  box-shadow: 0 0 0 3px rgba(160,192,64,.15);
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--brand-green);
+  box-shadow: 0 0 0 3px rgba(160,192,64,.15);
+}
+
+/* 状态标签 */
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.status-badge.active {
+  background: rgba(229,57,53,.2);
+  color: #e53935;
+}
+
+.status-badge.recovering {
+  background: rgba(255,152,0,.2);
+  color: #ff9800;
+}
+
+.status-badge.recovered {
+  background: rgba(76,175,80,.2);
+  color: #4caf50;
+}
+
+.empty-state-injury {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.empty-state-injury .empty-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- 工具栏 -->
+<div class="toolbar">
+  <button class="btn btn-primary" onclick="openInjuryModal()">➕ 新增伤病记录</button>
+</div>
+
+<!-- 双栏布局：人体图 + 时间线 -->
+<div class="injury-layout">
+
+  <!-- 人体图 -->
+  <div class="card body-map-card" id="bodyMapCard">
+    <div class="card-header" style="width:100%;">
+      <span class="card-title">🫀 人体伤病图</span>
+      <span style="font-size:0.7rem;color:var(--text-muted);">点击部位记录伤病</span>
+    </div>
+
+    <div class="body-diagram-container">
+      <!-- 正面 -->
+      <div class="body-view">
+        <div class="body-view-title">正面</div>
+        <svg class="body-svg" viewBox="0 0 160 400" xmlns="http://www.w3.org/2000/svg">
+          <!-- 人体轮廓 -->
+          <ellipse cx="80" cy="40" rx="18" ry="22" fill="none" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="80" y1="62" x2="80" y2="130" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 肩膀 -->
+          <line x1="80" y1="80" x2="48" y2="100" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="80" y1="80" x2="112" y2="100" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 上臂 -->
+          <line x1="48" y1="100" x2="36" y2="155" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="112" y1="100" x2="124" y2="155" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 前臂 -->
+          <line x1="36" y1="155" x2="30" y2="205" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="124" y1="155" x2="130" y2="205" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 躯干 -->
+          <rect x="62" y="130" width="36" height="100" rx="6" fill="none" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 大腿 -->
+          <line x1="68" y1="230" x2="58" y2="310" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="92" y1="230" x2="102" y2="310" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 小腿 -->
+          <line x1="58" y1="310" x2="54" y2="375" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="102" y1="310" x2="106" y2="375" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 脚 -->
+          <line x1="54" y1="375" x2="44" y2="388" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="106" y1="375" x2="116" y2="388" stroke="#a0a8b8" stroke-width="1.5"/>
+
+          <!-- 热点：肩 (左/右) -->
+          <circle cx="48" cy="100" r="10" class="body-hotspot no-injury" data-part="左肩" onclick="clickBodyPart('左肩')"/>
+          <circle cx="112" cy="100" r="10" class="body-hotspot no-injury" data-part="右肩" onclick="clickBodyPart('右肩')"/>
+
+          <!-- 热点：肘 (左/右) -->
+          <circle cx="36" cy="155" r="9" class="body-hotspot no-injury" data-part="左肘" onclick="clickBodyPart('左肘')"/>
+          <circle cx="124" cy="155" r="9" class="body-hotspot no-injury" data-part="右肘" onclick="clickBodyPart('右肘')"/>
+
+          <!-- 热点：腕 (左/右) -->
+          <circle cx="30" cy="205" r="8" class="body-hotspot no-injury" data-part="左腕" onclick="clickBodyPart('左腕')"/>
+          <circle cx="130" cy="205" r="8" class="body-hotspot no-injury" data-part="右腕" onclick="clickBodyPart('右腕')"/>
+
+          <!-- 热点：髋 (左/右) -->
+          <circle cx="68" cy="230" r="9" class="body-hotspot no-injury" data-part="左髋" onclick="clickBodyPart('左髋')"/>
+          <circle cx="92" cy="230" r="9" class="body-hotspot no-injury" data-part="右髋" onclick="clickBodyPart('右髋')"/>
+
+          <!-- 热点：膝 (左/右) -->
+          <circle cx="58" cy="310" r="9" class="body-hotspot no-injury" data-part="左膝" onclick="clickBodyPart('左膝')"/>
+          <circle cx="102" cy="310" r="9" class="body-hotspot no-injury" data-part="右膝" onclick="clickBodyPart('右膝')"/>
+
+          <!-- 热点：踝 (左/右) -->
+          <circle cx="54" cy="375" r="8" class="body-hotspot no-injury" data-part="左踝" onclick="clickBodyPart('左踝')"/>
+          <circle cx="106" cy="375" r="8" class="body-hotspot no-injury" data-part="右踝" onclick="clickBodyPart('右踝')"/>
+        </svg>
+      </div>
+
+      <!-- 背面 -->
+      <div class="body-view">
+        <div class="body-view-title">背面</div>
+        <svg class="body-svg" viewBox="0 0 160 400" xmlns="http://www.w3.org/2000/svg">
+          <!-- 人体轮廓 -->
+          <ellipse cx="80" cy="40" rx="18" ry="22" fill="none" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="80" y1="62" x2="80" y2="130" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 肩膀 -->
+          <line x1="80" y1="80" x2="48" y2="100" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="80" y1="80" x2="112" y2="100" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 上臂 -->
+          <line x1="48" y1="100" x2="36" y2="155" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="112" y1="100" x2="124" y2="155" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 前臂 -->
+          <line x1="36" y1="155" x2="30" y2="205" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="124" y1="155" x2="130" y2="205" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 躯干 -->
+          <rect x="62" y="130" width="36" height="100" rx="6" fill="none" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 大腿 -->
+          <line x1="68" y1="230" x2="58" y2="310" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="92" y1="230" x2="102" y2="310" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 小腿 -->
+          <line x1="58" y1="310" x2="54" y2="375" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="102" y1="310" x2="106" y2="375" stroke="#a0a8b8" stroke-width="1.5"/>
+          <!-- 脚 -->
+          <line x1="54" y1="375" x2="44" y2="388" stroke="#a0a8b8" stroke-width="1.5"/>
+          <line x1="106" y1="375" x2="116" y2="388" stroke="#a0a8b8" stroke-width="1.5"/>
+
+          <!-- 热点：肩 (左/右) - 背面 -->
+          <circle cx="48" cy="100" r="10" class="body-hotspot no-injury" data-part="左肩" onclick="clickBodyPart('左肩')"/>
+          <circle cx="112" cy="100" r="10" class="body-hotspot no-injury" data-part="右肩" onclick="clickBodyPart('右肩')"/>
+
+          <!-- 热点：肘 (左/右) -->
+          <circle cx="36" cy="155" r="9" class="body-hotspot no-injury" data-part="左肘" onclick="clickBodyPart('左肘')"/>
+          <circle cx="124" cy="155" r="9" class="body-hotspot no-injury" data-part="右肘" onclick="clickBodyPart('右肘')"/>
+
+          <!-- 热点：腕 (左/右) -->
+          <circle cx="30" cy="205" r="8" class="body-hotspot no-injury" data-part="左腕" onclick="clickBodyPart('左腕')"/>
+          <circle cx="130" cy="205" r="8" class="body-hotspot no-injury" data-part="右腕" onclick="clickBodyPart('右腕')"/>
+
+          <!-- 热点：髋 (左/右) -->
+          <circle cx="68" cy="230" r="9" class="body-hotspot no-injury" data-part="左髋" onclick="clickBodyPart('左髋')"/>
+          <circle cx="92" cy="230" r="9" class="body-hotspot no-injury" data-part="右髋" onclick="clickBodyPart('右髋')"/>
+
+          <!-- 热点：膝 (左/右) -->
+          <circle cx="58" cy="310" r="9" class="body-hotspot no-injury" data-part="左膝" onclick="clickBodyPart('左膝')"/>
+          <circle cx="102" cy="310" r="9" class="body-hotspot no-injury" data-part="右膝" onclick="clickBodyPart('右膝')"/>
+
+          <!-- 热点：踝 (左/右) -->
+          <circle cx="54" cy="375" r="8" class="body-hotspot no-injury" data-part="左踝" onclick="clickBodyPart('左踝')"/>
+          <circle cx="106" cy="375" r="8" class="body-hotspot no-injury" data-part="右踝" onclick="clickBodyPart('右踝')"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="body-legend">
+      <span><span class="legend-dot active"></span> 伤病中</span>
+      <span><span class="legend-dot recovered"></span> 已康复</span>
+      <span><span class="legend-dot clean"></span> 无伤</span>
+    </div>
+  </div>
+
+  <!-- 伤病时间线 -->
+  <div class="card timeline-card">
+    <div class="card-header">
+      <span class="card-title">📅 伤病时间线</span>
+      <span id="timelineCount" style="font-size:0.7rem;color:var(--text-muted);">0条记录</span>
+    </div>
+
+    <div class="timeline" id="injuryTimeline">
+      <div class="empty-state-injury">
+        <div class="empty-icon">✅</div>
+        <p>暂无伤病记录</p>
+        <p style="font-size:0.7rem;">点击左侧人体图或上方按钮记录伤病</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 伤病统计摘要 -->
+<div class="card card-accent-teal" style="margin-top:0;">
+  <div class="card-header">
+    <span class="card-title">📈 伤病统计</span>
+  </div>
+  <div class="metric-grid" style="margin-bottom:0;">
+    <div class="metric-card">
+      <div class="metric-value" id="statTotal" style="color: var(--text-secondary);">0</div>
+      <div class="metric-label">总计记录</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value" id="statActive" style="color: #e53935;">0</div>
+      <div class="metric-label">伤病中</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value" id="statRecovered" style="color: #4caf50;">0</div>
+      <div class="metric-label">已康复</div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增伤病模态框 -->
+<div class="modal-overlay" id="injuryModal">
+  <div class="modal">
+    <div class="modal-title">🩺 新增伤病记录</div>
+
+    <div class="form-group">
+      <label class="form-label">受伤部位 *</label>
+      <select class="form-select" id="injuryBodyPart">
+        <option value="">请选择部位</option>
+        <option value="左肩">左肩</option><option value="右肩">右肩</option>
+        <option value="左肘">左肘</option><option value="右肘">右肘</option>
+        <option value="左腕">左腕</option><option value="右腕">右腕</option>
+        <option value="左髋">左髋</option><option value="右髋">右髋</option>
+        <option value="左膝">左膝</option><option value="右膝">右膝</option>
+        <option value="左踝">左踝</option><option value="右踝">右踝</option>
+        <option value="腰部">腰部</option>
+        <option value="颈部">颈部</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">伤病类型 *</label>
+      <select class="form-select" id="injuryType">
+        <option value="">请选择类型</option>
+        <option value="扭伤">扭伤</option>
+        <option value="拉伤">拉伤</option>
+        <option value="挫伤">挫伤</option>
+        <option value="骨折">骨折</option>
+        <option value="脱位">脱位</option>
+        <option value="肌腱炎">肌腱炎</option>
+        <option value="半月板损伤">半月板损伤</option>
+        <option value="韧带撕裂">韧带撕裂</option>
+        <option value="疲劳性损伤">疲劳性损伤</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">严重程度 *</label>
+      <select class="form-select" id="injurySeverity">
+        <option value="mild">轻度</option>
+        <option value="moderate">中度</option>
+        <option value="severe">重度</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">受伤日期 *</label>
+      <input type="date" class="form-input" id="injuryDate" value="{{ today }}">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">预计康复日期</label>
+      <input type="date" class="form-input" id="injuryRecoveryDate">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">状态</label>
+      <select class="form-select" id="injuryStatus">
+        <option value="active">伤病中</option>
+        <option value="recovering">康复中</option>
+        <option value="recovered">已康复</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">详细描述</label>
+      <textarea class="form-textarea" id="injuryDescription" placeholder="描述伤病详情、症状、治疗情况..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeInjuryModal()">取消</button>
+      <button class="btn btn-primary" onclick="submitInjury()">💾 保存记录</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if athlete %}
+const ATHLETE_ID = {{ athlete.id }};
+{% else %}
+const ATHLETE_ID = null;
+{% endif %}
+
+let allInjuries = [];
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+  loadTimeline();
+  // 设置默认日期
+  var today = new Date().toISOString().split('T')[0];
+  document.getElementById('injuryDate').value = today;
+});
+
+// 加载伤病时间线
+function loadTimeline() {
+  fetch('/api/injuries/timeline')
+    .then(r => r.json())
+    .then(data => {
+      allInjuries = data.injuries || [];
+      renderTimeline(allInjuries);
+      renderBodyMap(allInjuries);
+      renderStats(allInjuries);
+    })
+    .catch(e => console.error('加载伤病数据失败:', e));
+}
+
+// 渲染时间线
+function renderTimeline(injuries) {
+  var container = document.getElementById('injuryTimeline');
+  document.getElementById('timelineCount').textContent = injuries.length + '条记录';
+
+  if (!injuries.length) {
+    container.innerHTML = '<div class="empty-state-injury"><div class="empty-icon">✅</div><p>暂无伤病记录</p><p style="font-size:0.7rem;">点击左侧人体图或上方按钮记录伤病</p></div>';
+    return;
+  }
+
+  var html = '';
+  injuries.forEach(function(inj, idx) {
+    var statusClass = 'status-' + (inj.status || 'active');
+    var statusBadge = '';
+    if (inj.status === 'active') statusBadge = '<span class="status-badge active">伤病中</span>';
+    else if (inj.status === 'recovering') statusBadge = '<span class="status-badge recovering">康复中</span>';
+    else statusBadge = '<span class="status-badge recovered">已康复</span>';
+
+    // 恢复进度条
+    var progressHtml = '';
+    if (inj.injury_date && inj.recovery_date) {
+      var start = new Date(inj.injury_date).getTime();
+      var end = new Date(inj.recovery_date).getTime();
+      var now = Date.now();
+      var pct = Math.min(100, Math.max(0, Math.round((now - start) / (end - start) * 100)));
+      var barColor = inj.status === 'recovered' ? 'green' : (pct >= 80 ? 'green' : (pct >= 40 ? 'orange' : 'red'));
+      progressHtml =
+        '<div class="recovery-progress">' +
+          '<div class="progress-label"><span>恢复进度</span><span>' + pct + '%</span></div>' +
+          '<div class="progress-bar-bg"><div class="progress-bar-fill ' + barColor + '" style="width:' + pct + '%;"></div></div>' +
+        '</div>';
+    }
+
+    html +=
+      '<div class="timeline-item ' + statusClass + '">' +
+        '<div class="timeline-date">📅 ' + (inj.injury_date || '') + '</div>' +
+        '<div class="timeline-card-inner">' +
+          '<div class="timeline-body-part">' + (inj.body_part || '未知部位') + ' ' + statusBadge + '</div>' +
+          '<div class="timeline-type">' + (inj.injury_type || '') + ' · ' + severityLabel(inj.severity) + '</div>' +
+          (inj.description ? '<div class="timeline-desc">' + inj.description + '</div>' : '') +
+          (inj.recovery_date ? '<div class="timeline-desc" style="color:#4caf50;">🏁 预计康复: ' + inj.recovery_date + '</div>' : '') +
+          progressHtml +
+        '</div>' +
+      '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+// 渲染人体图热点
+function renderBodyMap(injuries) {
+  // 重置所有热点
+  document.querySelectorAll('.body-hotspot').forEach(function(el) {
+    el.classList.remove('has-injury', 'recovered', 'no-injury');
+    el.classList.add('no-injury');
+    el.setAttribute('fill', 'transparent');
+  });
+
+  // 按部位分组取最新伤病
+  var partStatus = {};
+  injuries.forEach(function(inj) {
+    var part = inj.body_part;
+    if (part && !partStatus[part]) {
+      partStatus[part] = inj.status;
+    }
+  });
+
+  Object.keys(partStatus).forEach(function(part) {
+    var status = partStatus[part];
+    document.querySelectorAll('.body-hotspot[data-part="' + part + '"]').forEach(function(el) {
+      el.classList.remove('no-injury');
+      if (status === 'recovered') {
+        el.classList.add('recovered');
+        el.setAttribute('fill', '#4caf50');
+      } else {
+        el.classList.add('has-injury');
+        el.setAttribute('fill', '#e53935');
+      }
+    });
+  });
+}
+
+// 渲染统计
+function renderStats(injuries) {
+  document.getElementById('statTotal').textContent = injuries.length;
+  document.getElementById('statActive').textContent = injuries.filter(i => i.status === 'active' || i.status === 'recovering').length;
+  document.getElementById('statRecovered').textContent = injuries.filter(i => i.status === 'recovered').length;
+}
+
+function severityLabel(s) {
+  if (s === 'mild') return '轻度';
+  if (s === 'moderate') return '中度';
+  if (s === 'severe') return '重度';
+  return s || '未知';
+}
+
+// 点击人体图部位
+function clickBodyPart(part) {
+  openInjuryModal(part);
+}
+
+// 打开模态框
+function openInjuryModal(prefillPart) {
+  var modal = document.getElementById('injuryModal');
+  modal.classList.add('active');
+  if (prefillPart) {
+    document.getElementById('injuryBodyPart').value = prefillPart;
+  }
+  var today = new Date().toISOString().split('T')[0];
+  document.getElementById('injuryDate').value = today;
+}
+
+// 关闭模态框
+function closeInjuryModal() {
+  document.getElementById('injuryModal').classList.remove('active');
+}
+
+// 点击遮罩关闭
+document.addEventListener('click', function(e) {
+  if (e.target.id === 'injuryModal') {
+    closeInjuryModal();
+  }
+});
+
+// 提交伤病记录
+function submitInjury() {
+  var bodyPart = document.getElementById('injuryBodyPart').value;
+  var injuryType = document.getElementById('injuryType').value;
+  var severity = document.getElementById('injurySeverity').value;
+  var injuryDate = document.getElementById('injuryDate').value;
+  var recoveryDate = document.getElementById('injuryRecoveryDate').value;
+  var status = document.getElementById('injuryStatus').value;
+  var description = document.getElementById('injuryDescription').value;
+
+  if (!bodyPart) { alert('请选择受伤部位'); return; }
+  if (!injuryType) { alert('请选择伤病类型'); return; }
+
+  fetch('/api/injury', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      body_part: bodyPart,
+      injury_type: injuryType,
+      severity: severity,
+      injury_date: injuryDate,
+      recovery_date: recoveryDate || null,
+      status: status,
+      description: description
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      closeInjuryModal();
+      loadTimeline();
+      if (typeof showToast === 'function') {
+        showToast('✅ 伤病记录已保存', 'success');
+      }
+    } else {
+      alert('保存失败: ' + (data.error || '未知错误'));
+    }
+  })
+  .catch(e => {
+    alert('网络错误: ' + e.message);
+  });
+}
+</script>
+{% endblock %}

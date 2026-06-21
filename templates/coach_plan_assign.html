@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}分配计划 - 运动员平台{% endblock %}
+{% block page_title %}👥 分配计划：{{ plan.title }}{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-direction:column;gap:16px;">
+
+  <!-- 计划信息 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📋 {{ plan.title }}</span>
+      <a href="{{ url_for('coach_plans') }}" class="btn btn-outline btn-sm">← 返回计划列表</a>
+    </div>
+    <div style="display:flex;gap:24px;color:var(--text-secondary);font-size:0.85rem;">
+      <span>🏷 {{ plan.sport_type or '通用' }}</span>
+      <span>📅 {{ plan.duration_weeks }}周</span>
+      <span>📝 {{ plan.total_days }}个训练日</span>
+    </div>
+  </div>
+
+  <!-- 已分配运动员 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">已分配运动员 ({{ assigned|length }})</span>
+    </div>
+    {% if assigned %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border-subtle);">
+          <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.78rem;">运动员</th>
+          <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.78rem;">项目</th>
+          <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.78rem;">分配日期</th>
+          <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.78rem;">状态</th>
+          <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.78rem;">进度</th>
+          <th style="padding:8px;"></th>
+        </tr>
+      </thead>
+      <tbody id="assignedList">
+        {% for ap in assigned %}
+        <tr style="border-bottom:1px solid var(--border-subtle);">
+          <td style="padding:10px 8px;font-weight:600;">{{ ap.athlete.name }}</td>
+          <td style="padding:10px 8px;color:var(--text-secondary);">{{ ap.athlete.sport_type or '-' }}</td>
+          <td style="padding:10px 8px;color:var(--text-secondary);">{{ ap.assigned_date }}</td>
+          <td style="padding:10px 8px;">
+            <span class="plan-badge {% if ap.status == 'active' %}badge-active{% else %}badge-inactive{% endif %}">
+              {{ {'active':'进行中','completed':'已完成','paused':'已暂停'}.get(ap.status, ap.status) }}
+            </span>
+          </td>
+          <td style="padding:10px 8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="flex:1;background:var(--bg-deep);border-radius:4px;height:6px;">
+                <div style="width:{{ ap.progress_pct }}%;height:100%;background:var(--brand-green);border-radius:4px;"></div>
+              </div>
+              <span style="font-size:0.75rem;color:var(--brand-green);white-space:nowrap;">{{ ap.progress_pct }}%</span>
+            </div>
+          </td>
+          <td style="padding:10px 8px;text-align:right;">
+            <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="unassign({{ ap.id }})">解除</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--text-muted);text-align:center;padding:20px;">暂未分配运动员</p>
+    {% endif %}
+  </div>
+
+  <!-- 添加运动员 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">➕ 分配新运动员</span>
+    </div>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+        <label class="form-label">选择运动员</label>
+        <select class="form-input" id="athleteSelect">
+          <option value="">— 请选择 —</option>
+          {% for a in athletes %}
+            {% if a.id not in assigned_ids %}
+            <option value="{{ a.id }}">{{ a.name }} — {{ a.sport_type or '未设置' }} {{ a.position or '' }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="flex:2;min-width:200px;margin-bottom:0;">
+        <label class="form-label">教练备注</label>
+        <input class="form-input" id="coachNotes" placeholder="给运动员的说明（可选）">
+      </div>
+      <button class="btn btn-primary" onclick="assignAthlete()" style="margin-bottom:0;">分配</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function assignAthlete() {
+  const athleteId = parseInt(document.getElementById('athleteSelect').value);
+  if (!athleteId) { showToast('请选择运动员', 'error'); return; }
+
+  const notes = document.getElementById('coachNotes').value.trim();
+
+  try {
+    const res = await fetch('/api/plans/{{ plan.id }}/assign', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ athlete_id: athleteId, coach_notes: notes }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast('分配成功！', 'success');
+      location.reload();
+    } else {
+      showToast(result.error || '分配失败', 'error');
+    }
+  } catch(e) {
+    showToast('网络错误', 'error');
+  }
+}
+
+async function unassign(athletePlanId) {
+  if (!confirm('确定解除此分配？')) return;
+  try {
+    const res = await fetch('/api/athlete/plans/unassign/' + athletePlanId, { method: 'DELETE' });
+    const result = await res.json();
+    if (result.success) {
+      showToast('已解除分配', 'success');
+      location.reload();
+    } else {
+      showToast(result.error, 'error');
+    }
+  } catch(e) {
+    showToast('网络错误', 'error');
+  }
+}
+</script>
+{% endblock %}

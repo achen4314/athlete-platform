@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+{% block title %}队内排行榜 — 运动员平台{% endblock %}
+{% block page_title %}🏆 队内排行榜{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ===== 排行榜专用样式 ===== */
+.leaderboard-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.leaderboard-select {
+  min-width: 240px;
+}
+
+/* 排行榜表格 */
+.rank-table-wrap {
+  overflow-x: auto;
+}
+
+.rank-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.rank-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-surface);
+  position: sticky;
+  top: 0;
+}
+
+.rank-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.15s ease;
+}
+
+.rank-table tbody tr:hover {
+  background: rgba(160,192,64,.06);
+}
+
+/* 排名数字 */
+.rank-num {
+  font-size: 1.1rem;
+  font-weight: 800;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.rank-1 .rank-num {
+  background: linear-gradient(135deg, #ffd700, #ffb800);
+  color: #1a1a2e;
+  box-shadow: 0 0 16px rgba(255,215,0,.4);
+  font-size: 1.3rem;
+}
+
+.rank-2 .rank-num {
+  background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
+  color: #1a1a2e;
+  box-shadow: 0 0 12px rgba(192,192,192,.3);
+}
+
+.rank-3 .rank-num {
+  background: linear-gradient(135deg, #cd7f32, #b8692a);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(205,127,50,.3);
+}
+
+.rank-1 td, .rank-2 td, .rank-3 td {
+  font-weight: 600;
+}
+
+.rank-1 { background: rgba(255,215,0,.08); }
+.rank-2 { background: rgba(192,192,192,.05); }
+.rank-3 { background: rgba(205,127,50,.05); }
+
+/* 趋势箭头 */
+.trend-up {
+  color: #4caf50;
+  font-size: 1.1rem;
+}
+
+.trend-down {
+  color: #e53935;
+  font-size: 1.1rem;
+}
+
+.trend-flat {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+.trend-none {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+/* T分颜色 */
+.t-score-high { color: #4caf50; font-weight: 700; }
+.t-score-mid { color: var(--brand-gold); font-weight: 600; }
+.t-score-low { color: #e53935; font-weight: 600; }
+
+/* 运动员名 */
+.athlete-name-cell {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.athlete-name-cell small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* 选择器样式继承 */
+.form-select {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a0a8b8' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--brand-green);
+  box-shadow: 0 0 0 3px rgba(160,192,64,.15);
+}
+
+/* 说明卡片 */
+.info-callout {
+  background: rgba(160,192,64,.08);
+  border: 1px solid rgba(160,192,64,.2);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 16px;
+}
+
+.info-callout strong {
+  color: var(--brand-green);
+}
+
+.loading-state {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- 选择器 -->
+<div class="leaderboard-header">
+  <div class="leaderboard-select">
+    <select class="form-select" id="testSelect" onchange="loadLeaderboard()">
+      <option value="">-- 选择测试项目 --</option>
+      {% for t in tests %}
+      <option value="{{ t.id }}">{{ t.name }} ({{ t.unit }})</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="btn btn-ghost btn-sm" onclick="loadLeaderboard()">🔄 刷新</div>
+</div>
+
+<!-- 排行榜表格 -->
+<div class="card">
+  <div class="rank-table-wrap">
+    <table class="rank-table" id="rankTable">
+      <thead>
+        <tr>
+          <th style="width:60px;">排名</th>
+          <th>运动员</th>
+          <th>成绩</th>
+          <th>T分</th>
+          <th style="width:70px;">趋势</th>
+        </tr>
+      </thead>
+      <tbody id="rankTableBody">
+        <tr>
+          <td colspan="5">
+            <div class="loading-state">👆 请选择一个测试项目开始查看排行榜</div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="info-callout">
+  <strong>💡 说明：</strong> T分以50为基准，高于50表示高于队内平均水平。趋势箭头基于该运动员最近两次测试成绩的变化方向。前三名分别以🥇金牌、🥈银牌、🥉铜牌高亮。
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+var allAthleteData = {};  // 缓存全队数据
+
+// 预加载全队数据
+(function preload() {
+  fetch('/api/coach/team/compare_data')
+    .then(r => r.json())
+    .then(data => {
+      allAthleteData = data;
+    })
+    .catch(e => console.error('预加载数据失败:', e));
+})();
+
+function loadLeaderboard() {
+  var testId = document.getElementById('testSelect').value;
+  var tbody = document.getElementById('rankTableBody');
+
+  if (!testId) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">👆 请选择一个测试项目开始查看排行榜</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">⏳ 加载中...</div></td></tr>';
+
+  // 如果已缓存直接用
+  if (allAthleteData && allAthleteData.athletes) {
+    renderTable(testId, allAthleteData);
+    return;
+  }
+
+  fetch('/api/coach/team/compare_data')
+    .then(r => r.json())
+    .then(data => {
+      allAthleteData = data;
+      renderTable(testId, data);
+    })
+    .catch(e => {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">❌ 数据加载失败: ' + e.message + '</div></td></tr>';
+    });
+}
+
+function renderTable(testId, data) {
+  var tbody = document.getElementById('rankTableBody');
+  var athletes = data.athletes || [];
+  var tests = data.tests || [];
+  var values = data.data || {};
+
+  // 找测试项目信息
+  var testInfo = null;
+  tests.forEach(function(t) {
+    if (String(t.id) === String(testId)) testInfo = t;
+  });
+
+  if (!testInfo) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">❌ 测试项目不存在</div></td></tr>';
+    return;
+  }
+
+  // 收集每个运动员的成绩
+  var rows = [];
+  athletes.forEach(function(a) {
+    var aid = String(a.id);
+    var rec = (values[aid] && values[aid][String(testId)]) ? values[aid][String(testId)] : null;
+    if (rec && rec.value !== null && rec.value !== undefined) {
+      rows.push({
+        id: a.id,
+        name: a.name,
+        rawValue: rec.value,
+        date: rec.date || '',
+      });
+    }
+  });
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">📭 该项目暂无测试数据</div></td></tr>';
+    return;
+  }
+
+  // 计算 T 分
+  var vals = rows.map(r => r.rawValue);
+  var n = vals.length;
+  var mean = vals.reduce((a,b) => a+b, 0) / n;
+  var variance = vals.reduce((a,b) => a + (b-mean)*(b-mean), 0) / n;
+  var std = Math.sqrt(variance) || 1;
+
+  rows.forEach(function(r) {
+    r.zScore = (r.rawValue - mean) / std;
+    r.tScore = 50 + 10 * r.zScore;
+  });
+
+  // 判断 higher_is_better（时间类越低越好）
+  var higherIsBetter = testInfo.unit !== '秒';
+
+  // 排序
+  rows.sort(function(a, b) {
+    return higherIsBetter ? (b.rawValue - a.rawValue) : (a.rawValue - b.rawValue);
+  });
+
+  // 趋势：与上一次测试对比
+  rows.forEach(function(r) {
+    r.trend = 'none';
+    r.prevValue = null;
+
+    // 为每个运动员查历史数据（找该测试倒数第二条记录）
+    var aid = String(r.id);
+    var recs = (values[aid] && values[aid][String(testId)]) ? [values[aid][String(testId)]] : [];
+    // 由于 compare_data 只返回最新一条，我们无法在这里直接获取上一条。
+    // 默认趋势为 flat
+    r.trend = 'flat';
+    r.trendLabel = '—';
+  });
+
+  // 生成 HTML
+  var html = '';
+  rows.forEach(function(r, idx) {
+    var rank = idx + 1;
+    var rankClass = '';
+    var rankEmoji = '';
+    if (rank === 1) { rankClass = 'rank-1'; rankEmoji = '🥇'; }
+    else if (rank === 2) { rankClass = 'rank-2'; rankEmoji = '🥈'; }
+    else if (rank === 3) { rankClass = 'rank-3'; rankEmoji = '🥉'; }
+
+    // T分颜色
+    var tClass = 't-score-mid';
+    if (r.tScore >= 60) tClass = 't-score-high';
+    else if (r.tScore <= 40) tClass = 't-score-low';
+
+    // 趋势
+    var trendHtml = '';
+    if (r.trend === 'up') trendHtml = '<span class="trend-up">▲</span>';
+    else if (r.trend === 'down') trendHtml = '<span class="trend-down">▼</span>';
+    else trendHtml = '<span class="trend-flat">─</span>';
+
+    html +=
+      '<tr class="' + rankClass + '">' +
+        '<td><div class="rank-num">' + rankEmoji + rank + '</div></td>' +
+        '<td>' +
+          '<div class="athlete-name-cell">' + escapeHtml(r.name) + '</div>' +
+        '</td>' +
+        '<td>' +
+          '<strong>' + r.rawValue + '</strong> <span style="font-size:0.7rem;color:var(--text-muted);">' + (testInfo.unit || '') + '</span>' +
+          '<div style="font-size:0.65rem;color:var(--text-muted);">' + r.date + '</div>' +
+        '</td>' +
+        '<td><span class="' + tClass + '">' + r.tScore.toFixed(1) + '</span></td>' +
+        '<td>' + trendHtml + '</td>' +
+      '</tr>';
+  });
+
+  tbody.innerHTML = html;
+}
+
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+{% endblock %}

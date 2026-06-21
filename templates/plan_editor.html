@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}编辑训练计划 - 运动员平台{% endblock %}
+{% block page_title %}✏️ 编辑：{{ plan.title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+.plan-editor-container { display:flex; flex-direction:column; gap:16px; }
+.plan-editor-toolbar {
+  display:flex; align-items:center; gap:12px;
+  padding:12px 16px; background:var(--bg-card); border-radius:var(--radius-md);
+  border:1px solid var(--border-subtle); flex-wrap:wrap;
+}
+.plan-editor-toolbar .btn { white-space:nowrap; }
+.week-tabs { display:flex; gap:4px; flex-wrap:wrap; }
+.week-tab {
+  padding:8px 20px; background:var(--bg-card); border:1px solid var(--border-subtle);
+  border-radius:var(--radius-sm); cursor:pointer; color:var(--text-secondary);
+  font-size:0.85rem; font-weight:600; transition:var(--transition);
+  font-family:inherit;
+}
+.week-tab:hover { border-color:var(--brand-green); color:var(--brand-green); }
+.week-tab.active { background:var(--brand-green); color:#1a1a2e; border-color:var(--brand-green); }
+
+.day-grid { overflow-x:auto; }
+.day-grid table {
+  width:100%; border-collapse:collapse; min-width:1000px;
+}
+.day-grid th {
+  padding:10px 8px; background:var(--bg-surface); color:var(--text-secondary);
+  font-size:0.78rem; font-weight:600; text-align:center;
+  border:1px solid var(--border-subtle); white-space:nowrap;
+}
+.day-grid td {
+  padding:6px 4px; border:1px solid var(--border-subtle); vertical-align:top;
+}
+.day-grid td input, .day-grid td textarea {
+  width:100%; background:transparent; border:none; color:var(--text-primary);
+  font-size:0.8rem; font-family:inherit; padding:4px 6px; resize:vertical;
+  min-height:28px; box-sizing:border-box;
+}
+.day-grid td textarea { min-height:50px; }
+.day-grid td input:focus, .day-grid td textarea:focus {
+  outline:2px solid var(--brand-green); background:rgba(160,192,64,.05);
+  border-radius:4px;
+}
+.day-grid td.cell-focus { background:rgba(160,192,64,.08); border-radius:4px; }
+.day-grid td.cell-changed { background:rgba(255,152,0,.08); }
+.col-header { width:12%; }
+.col-main { width:28%; }
+
+.toast-success { background:var(--success); }
+.toast-error { background:var(--danger); }
+
+/* 快捷键提示 */
+.shortcuts-bar {
+  padding:8px 16px; background:var(--bg-surface); border-radius:var(--radius-sm);
+  display:flex; gap:16px; flex-wrap:wrap; font-size:0.75rem; color:var(--text-muted);
+}
+.shortcuts-bar kbd {
+  background:var(--bg-card); padding:2px 6px; border-radius:3px;
+  border:1px solid var(--border-subtle); font-family:monospace; font-size:0.72rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="plan-editor-container">
+  <!-- 工具栏 -->
+  <div class="plan-editor-toolbar">
+    <div style="font-weight:600;color:var(--brand-green);margin-right:auto;">
+      {{ plan.title }} — {{ plan.duration_weeks }}周训练计划
+    </div>
+    <span class="shortcuts-bar">
+      <kbd>Ctrl+S</kbd> 保存 &nbsp; <kbd>Tab</kbd> 下一格 &nbsp; <kbd>Ctrl+C/V</kbd> 复制粘贴
+    </span>
+    <button class="btn btn-primary btn-sm" onclick="saveAllDays()" id="saveBtn">💾 保存全部</button>
+    <a href="{{ url_for('coach_plans') }}" class="btn btn-outline btn-sm">← 返回</a>
+  </div>
+
+  <!-- 周选择标签 -->
+  <div class="week-tabs" id="weekTabs">
+    {% for w in range(1, plan.duration_weeks + 1) %}
+    <button class="week-tab {% if w == 1 %}active{% endif %}" data-week="{{ w }}" onclick="switchWeek({{ w }})">
+      第{{ w }}周
+    </button>
+    {% endfor %}
+  </div>
+
+  <!-- 天网格 - 所有周都渲染，默认显示第1周 -->
+  {% for w in range(1, plan.duration_weeks + 1) %}
+  <div class="day-grid week-panel" id="week-{{ w }}" style="{% if w > 1 %}display:none;{% endif %}">
+    <table>
+      <thead>
+        <tr>
+          <th class="col-header">星期</th>
+          <th>训练重点</th>
+          <th class="col-main">热身</th>
+          <th class="col-main">主训练</th>
+          <th>放松</th>
+          <th style="width:60px;">时长(分)</th>
+          <th>备注</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set week_days = days | selectattr('week_number', 'equalto', w) | list %}
+        {% set day_names = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'] %}
+        {% for d in range(1, 8) %}
+          {% set day = week_days | selectattr('day_number', 'equalto', d) | list | first %}
+          {% set did = day.id if day else ('new_w' ~ w ~ 'd' ~ d) %}
+        <tr>
+          <td style="text-align:center;font-weight:600;color:var(--brand-green);">{{ day_names[d] }}</td>
+          <td><input type="text" class="day-input" data-id="{{ did }}" data-field="focus_area" data-week="{{ w }}" data-day="{{ d }}" value="{{ day.focus_area if day else '' }}" placeholder="训练重点"></td>
+          <td><textarea class="day-input" data-id="{{ did }}" data-field="warmup" data-week="{{ w }}" data-day="{{ d }}" rows="2" placeholder="热身内容">{{ day.warmup if day else '' }}</textarea></td>
+          <td><textarea class="day-input" data-id="{{ did }}" data-field="main_workout" data-week="{{ w }}" data-day="{{ d }}" rows="3" placeholder="主训练内容">{{ day.main_workout if day else '' }}</textarea></td>
+          <td><textarea class="day-input" data-id="{{ did }}" data-field="cool_down" data-week="{{ w }}" data-day="{{ d }}" rows="2" placeholder="放松内容">{{ day.cool_down if day else '' }}</textarea></td>
+          <td><input type="number" class="day-input" data-id="{{ did }}" data-field="duration_min" data-week="{{ w }}" data-day="{{ d }}" value="{{ day.duration_min if day else 60 }}" style="text-align:center;width:60px;"></td>
+          <td><input type="text" class="day-input" data-id="{{ did }}" data-field="notes" data-week="{{ w }}" data-day="{{ d }}" value="{{ day.notes if day else '' }}" placeholder="备注"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ========== 周切换 ==========
+function switchWeek(week) {
+  document.querySelectorAll('.week-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.week-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('week-' + week).style.display = '';
+  document.querySelector('.week-tab[data-week="' + week + '"]').classList.add('active');
+}
+
+// ========== 复制粘贴缓存 ==========
+let clipboard = {};
+let copyCellField = null;
+
+// 监听所有输入框的焦点/修改
+document.querySelectorAll('.day-input').forEach(function(input) {
+  // 修改标记
+  input.addEventListener('input', function() {
+    this.closest('td').classList.add('cell-changed');
+  });
+
+  // Ctrl+C 复制单元格
+  input.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'c') {
+      copyCellField = this.dataset.field;
+      clipboard = {};
+      clipboard[copyCellField] = this.value;
+      showToast('已复制: ' + getFieldLabel(copyCellField) + ' = ' + (this.value || '(空)'), 'info');
+    }
+
+    // Ctrl+V 粘贴到当前格
+    if (e.ctrlKey && e.key === 'v' && copyCellField) {
+      // 不阻止默认粘贴，让浏览器处理
+      setTimeout(() => {
+        this.closest('td').classList.add('cell-changed');
+      }, 50);
+    }
+
+    // Ctrl+S 保存
+    if (e.ctrlKey && e.key === 's') {
+      e.preventDefault();
+      saveAllDays();
+    }
+  });
+});
+
+function getFieldLabel(field) {
+  const map = {focus_area:'训练重点', warmup:'热身', main_workout:'主训练', cool_down:'放松', duration_min:'时长', notes:'备注'};
+  return map[field] || field;
+}
+
+// ========== 保存全部 ==========
+async function saveAllDays() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+
+  const days = [];
+  document.querySelectorAll('.day-input').forEach(function(input) {
+    const id = input.dataset.id;
+    const field = input.dataset.field;
+    const week = parseInt(input.dataset.week);
+    const dayNum = parseInt(input.dataset.day);
+    const value = input.value;
+
+    // 查找或创建day对象
+    let dayObj = days.find(function(d) {
+      return d.week_number === week && d.day_number === dayNum;
+    });
+    if (!dayObj) {
+      dayObj = {
+        week_number: week,
+        day_number: dayNum,
+        plan_id: {{ plan.id }},
+      };
+      if (id && !id.startsWith('new_')) {
+        dayObj.id = parseInt(id);
+      }
+      days.push(dayObj);
+    }
+    dayObj[field] = field === 'duration_min' ? (parseInt(value) || 60) : value;
+  });
+
+  try {
+    const res = await fetch('/api/plans/{{ plan.id }}/days', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(days),
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast('✅ 训练计划已保存！', 'success');
+      // 清除修改标记
+      document.querySelectorAll('.cell-changed').forEach(td => td.classList.remove('cell-changed'));
+    } else {
+      showToast('保存失败: ' + (result.error || '未知错误'), 'error');
+    }
+  } catch(e) {
+    showToast('网络错误', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 保存全部';
+  }
+}
+
+// ========== 自动保存提醒 ==========
+let autoSaveTimeout;
+document.querySelectorAll('.day-input').forEach(function(input) {
+  input.addEventListener('input', function() {
+    clearTimeout(autoSaveTimeout);
+    // 3分钟无操作后提醒
+    autoSaveTimeout = setTimeout(function() {
+      const changed = document.querySelectorAll('.cell-changed').length;
+      if (changed > 0) {
+        showToast('⚠ 有 ' + changed + ' 处未保存的修改 (Ctrl+S 保存)', 'info');
+      }
+    }, 180000);
+  });
+});
+</script>
+{% endblock %}

@@ -34,6 +34,9 @@
         <a href="{{ url_for('coach_athletes') }}" class="nav-item {% if request.endpoint == 'coach_athletes' %}active{% endif %}">
           <span class="nav-icon">👥</span> 运动员列表
         </a>
+        <a href="{{ url_for('coach_plans') }}" class="nav-item {% if request.endpoint in ('coach_plans', 'plan_editor', 'coach_plan_assign') %}active{% endif %}">
+          <span class="nav-icon">📋</span> 训练计划
+        </a>
         <a href="{{ url_for('coach_team_compare') }}" class="nav-item {% if request.endpoint == 'coach_team_compare' %}active{% endif %}">
           <span class="nav-icon">📊</span> 横向对比
         </a>
@@ -41,12 +44,23 @@
         <a href="{{ url_for('data_entry') }}" class="nav-item {% if request.endpoint == 'data_entry' %}active{% endif %}">
           <span class="nav-icon">📝</span> 数据录入
         </a>
+        <a href="{{ url_for('athlete_my_plan') }}" class="nav-item {% if request.endpoint == 'athlete_my_plan' %}active{% endif %}">
+          <span class="nav-icon">🏃</span> 我的训练
+        </a>
         {% endif %}
         <a href="{{ url_for('ai_chat') }}" class="nav-item {% if request.endpoint == 'ai_chat' %}active{% endif %}">
           <span class="nav-icon">🤖</span> AI 对话
         </a>
         <a href="{{ url_for('video_list_page') }}" class="nav-item {% if request.endpoint == 'video_list_page' or request.endpoint == 'video_player_page' %}active{% endif %}">
           <span class="nav-icon">🎥</span> 视频分析
+        </a>
+        {% if session.get('role') in ('coach', 'doctor', 'analyst', 'admin') %}
+        <a href="{{ url_for('coach_leaderboard') }}" class="nav-item {% if request.endpoint == 'coach_leaderboard' %}active{% endif %}">
+          <span class="nav-icon">🏆</span> 队内排行榜
+        </a>
+        {% endif %}
+        <a href="{{ url_for('injury_tracker') }}" class="nav-item {% if request.endpoint == 'injury_tracker' %}active{% endif %}">
+          <span class="nav-icon">❤️</span> 伤病追踪
         </a>
 
         <div class="nav-section-title" style="margin-top:18px;">其他</div>

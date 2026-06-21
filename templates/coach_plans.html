@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}训练计划管理 - 运动员平台{% endblock %}
+{% block page_title %}📋 训练计划管理{% endblock %}
+
+{% block content %}
+<div class="plan-header">
+  <div>
+    <h2 style="margin:0;color:var(--text-primary);">训练计划</h2>
+    <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0;">创建和管理训练计划，分配给运动员</p>
+  </div>
+  <button class="btn btn-primary" onclick="openCreateModal()">+ 创建新计划</button>
+</div>
+
+<!-- 计划卡片列表 -->
+<div id="plansList" class="plans-grid">
+  {% if plans %}
+    {% for plan in plans %}
+    <div class="plan-card card" id="plan-{{ plan.id }}">
+      <div class="plan-card-header">
+        <div class="plan-card-title">{{ plan.title }}</div>
+        <div style="display:flex;gap:8px;">
+          <span class="plan-badge {% if plan.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+            {{ '进行中' if plan.is_active else '已停用' }}
+          </span>
+        </div>
+      </div>
+      <div class="plan-card-body">
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:12px;">
+          {{ plan.description or '暂无描述' }}
+        </p>
+        <div class="plan-card-meta">
+          <span>🏷 {{ plan.sport_type or '通用' }}</span>
+          <span>📅 {{ plan.duration_weeks }}周</span>
+          <span>📝 {{ plan.total_days }}个训练日</span>
+          <span>👤 {{ plan.assigned_count }}名运动员</span>
+        </div>
+      </div>
+      <div class="plan-card-actions">
+        <a href="{{ url_for('plan_editor', plan_id=plan.id) }}" class="btn btn-outline btn-sm">✏️ 编辑内容</a>
+        <a href="{{ url_for('coach_plan_assign', plan_id=plan.id) }}" class="btn btn-outline btn-sm">👥 分配</a>
+        <button class="btn btn-secondary btn-sm" onclick="viewProgress({{ plan.id }})">📊 进度</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deletePlan({{ plan.id }})">🗑 删除</button>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <p>还没有训练计划</p>
+      <p style="color:var(--text-muted);font-size:0.85rem;">点击"创建新计划"开始创建</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- 创建计划弹窗 -->
+<div class="modal-overlay" id="createModal" style="display:none;">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <h3>创建训练计划</h3>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">计划标题 *</label>
+        <input class="form-input" id="planTitle" placeholder="例如：夏季体能训练第一周期">
+      </div>
+      <div class="form-group">
+        <label class="form-label">运动项目</label>
+        <input class="form-input" id="planSport" placeholder="例如：篮球、足球、田径">
+      </div>
+      <div class="form-group">
+        <label class="form-label">计划周数</label>
+        <input class="form-input" type="number" id="planWeeks" value="4" min="1" max="52">
+      </div>
+      <div class="form-group">
+        <label class="form-label">描述</label>
+        <textarea class="form-input" id="planDesc" rows="3" placeholder="训练计划的目标和说明..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="createPlan()">创建计划</button>
+    </div>
+  </div>
+</div>
+
+<!-- 进度查看弹窗 -->
+<div class="modal-overlay" id="progressModal" style="display:none;">
+  <div class="modal" style="max-width:650px;">
+    <div class="modal-header">
+      <h3>📊 执行进度</h3>
+      <button class="modal-close" onclick="document.getElementById('progressModal').style.display='none'">&times;</button>
+    </div>
+    <div class="modal-body" id="progressContent">
+      <p style="color:var(--text-muted);">加载中...</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// --- 创建计划弹窗 ---
+function openCreateModal() {
+  document.getElementById('createModal').style.display = 'flex';
+  document.getElementById('planTitle').focus();
+}
+function closeModal() {
+  document.getElementById('createModal').style.display = 'none';
+}
+
+async function createPlan() {
+  const title = document.getElementById('planTitle').value.trim();
+  if (!title) { showToast('请输入计划标题', 'error'); return; }
+
+  const data = {
+    title: title,
+    sport_type: document.getElementById('planSport').value.trim(),
+    duration_weeks: parseInt(document.getElementById('planWeeks').value) || 4,
+    description: document.getElementById('planDesc').value.trim(),
+  };
+
+  try {
+    const res = await fetch('/api/plans', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data),
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast('计划创建成功！', 'success');
+      closeModal();
+      location.reload();
+    } else {
+      showToast(result.error || '创建失败', 'error');
+    }
+  } catch(e) {
+    showToast('网络错误', 'error');
+  }
+}
+
+// --- 删除计划 ---
+async function deletePlan(planId) {
+  if (!confirm('确定要删除此计划吗？此操作不可恢复。')) return;
+  try {
+    const res = await fetch('/api/plans/' + planId, { method: 'DELETE' });
+    const result = await res.json();
+    if (result.success) {
+      showToast('计划已删除', 'success');
+      document.getElementById('plan-' + planId).remove();
+      if (!document.querySelector('.plan-card')) location.reload();
+    } else {
+      showToast(result.error || '删除失败', 'error');
+    }
+  } catch(e) {
+    showToast('网络错误', 'error');
+  }
+}
+
+// --- 查看进度 ---
+async function viewProgress(planId) {
+  const modal = document.getElementById('progressModal');
+  const content = document.getElementById('progressContent');
+  modal.style.display = 'flex';
+  content.innerHTML = '<p style="color:var(--text-muted);">加载中...</p>';
+
+  try {
+    const res = await fetch('/api/coach/plans/' + planId + '/progress');
+    const data = await res.json();
+    if (!data.length) {
+      content.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">暂无运动员分配此计划</p>';
+      return;
+    }
+    let html = '<table style="width:100%;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid var(--border-subtle);">' +
+      '<th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.8rem;">运动员</th>' +
+      '<th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.8rem;">状态</th>' +
+      '<th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.8rem;">进度</th>' +
+      '<th style="padding:8px;"></th></tr></thead><tbody>';
+    for (const ap of data) {
+      const pct = ap.progress_pct || 0;
+      const color = pct >= 80 ? 'var(--success)' : pct >= 40 ? 'var(--warning)' : 'var(--danger)';
+      html += '<tr style="border-bottom:1px solid var(--border-subtle);">' +
+        '<td style="padding:8px;">' + (ap.athlete_name || '未知') + '</td>' +
+        '<td style="padding:8px;">' + ap.status + '</td>' +
+        '<td style="padding:8px;"><div style="background:var(--bg-deep);border-radius:4px;height:8px;width:100%;"><div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:4px;"></div></div><span style="font-size:0.75rem;color:' + color + ';">' + pct + '%</span></td>' +
+        '<td style="padding:8px;text-align:right;"><button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="unassignAthlete(' + ap.id + ')">解除</button></td>' +
+        '</tr>';
+    }
+    html += '</tbody></table>';
+    content.innerHTML = html;
+  } catch(e) {
+    content.innerHTML = '<p style="color:var(--danger);">加载失败</p>';
+  }
+}
+
+async function unassignAthlete(athletePlanId) {
+  if (!confirm('确定解除此运动员的计划分配？')) return;
+  try {
+    const res = await fetch('/api/athlete/plans/unassign/' + athletePlanId, { method: 'DELETE' });
+    const result = await res.json();
+    if (result.success) {
+      showToast('已解除分配', 'success');
+      document.getElementById('progressModal').style.display = 'none';
+    } else {
+      showToast(result.error, 'error');
+    }
+  } catch(e) {
+    showToast('网络错误', 'error');
+  }
+}
+
+// 弹窗外点击关闭
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.style.display = 'none';
+  }
+});
+</script>
+{% endblock %}

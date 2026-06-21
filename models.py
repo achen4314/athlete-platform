@@ -433,3 +433,148 @@ class ChatMessage(db.Model):
 
     def __repr__(self):
         return f"<ChatMessage #{self.id} [{self.role}]>"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 训练计划模块
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TrainingPlan(db.Model):
+    """教练创建的训练计划"""
+    __tablename__ = "training_plans"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    coach_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, default="")
+    sport_type = db.Column(db.String(80), default="")
+    duration_weeks = db.Column(db.Integer, default=4)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 关系
+    coach = db.relationship("User", backref="training_plans")
+    plan_days = db.relationship("PlanDay", back_populates="plan", lazy="dynamic",
+                                cascade="all, delete-orphan")
+    athlete_plans = db.relationship("AthletePlan", back_populates="plan", lazy="dynamic",
+                                    cascade="all, delete-orphan")
+
+    @property
+    def total_days(self):
+        return self.plan_days.count()
+
+    @property
+    def assigned_count(self):
+        return self.athlete_plans.count()
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "coach_id": self.coach_id,
+            "coach_name": self.coach.display_name if self.coach else "",
+            "title": self.title,
+            "description": self.description,
+            "sport_type": self.sport_type,
+            "duration_weeks": self.duration_weeks,
+            "is_active": self.is_active,
+            "total_days": self.total_days,
+            "assigned_count": self.assigned_count,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+    def __repr__(self):
+        return f"<TrainingPlan #{self.id} {self.title}>"
+
+
+class PlanDay(db.Model):
+    """训练计划中每一天的详细内容"""
+    __tablename__ = "plan_days"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    plan_id = db.Column(db.Integer, db.ForeignKey("training_plans.id"), nullable=False, index=True)
+    week_number = db.Column(db.Integer, nullable=False)   # 从1开始
+    day_number = db.Column(db.Integer, nullable=False)    # 1-7（星期几）
+    focus_area = db.Column(db.String(100), default="")    # 训练重点
+    warmup = db.Column(db.Text, default="")               # 热身
+    main_workout = db.Column(db.Text, default="")         # 主训练
+    cool_down = db.Column(db.Text, default="")            # 放松
+    duration_min = db.Column(db.Integer, nullable=True)   # 预计时长（分钟）
+    notes = db.Column(db.Text, default="")                # 备注
+
+    # 关系
+    plan = db.relationship("TrainingPlan", back_populates="plan_days")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "plan_id": self.plan_id,
+            "week_number": self.week_number,
+            "day_number": self.day_number,
+            "focus_area": self.focus_area,
+            "warmup": self.warmup,
+            "main_workout": self.main_workout,
+            "cool_down": self.cool_down,
+            "duration_min": self.duration_min,
+            "notes": self.notes,
+        }
+
+    def __repr__(self):
+        return f"<PlanDay W{self.week_number}D{self.day_number} plan={self.plan_id}>"
+
+
+class AthletePlan(db.Model):
+    """运动员与训练计划的关联（分配记录）"""
+    __tablename__ = "athlete_plans"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    athlete_id = db.Column(db.Integer, db.ForeignKey("athletes.id"), nullable=False, index=True)
+    plan_id = db.Column(db.Integer, db.ForeignKey("training_plans.id"), nullable=False)
+    assigned_date = db.Column(db.Date, nullable=False, default=date.today)
+    start_date = db.Column(db.Date, nullable=True)  # 实际开始日期
+    status = db.Column(db.String(20), default="active")  # active / completed / paused
+    progress_pct = db.Column(db.Float, default=0.0)       # 完成百分比
+    coach_notes = db.Column(db.Text, default="")
+
+    # 关系
+    athlete = db.relationship("Athlete", backref="athlete_plans")
+    plan = db.relationship("TrainingPlan", back_populates="athlete_plans")
+
+    # 已完成的天（JSON字符串存储已完成的plan_day_id列表）
+    completed_days = db.Column(db.Text, default="[]")
+
+    def get_completed_day_ids(self):
+        """返回已完成天数的ID列表"""
+        import json
+        try:
+            return json.loads(self.completed_days)
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    def set_completed_day_ids(self, day_ids):
+        """设置已完成天数的ID列表"""
+        import json
+        self.completed_days = json.dumps(day_ids)
+        total = self.plan.total_days
+        if total > 0:
+            self.progress_pct = round(len(day_ids) / total * 100, 1)
+        else:
+            self.progress_pct = 0.0
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "athlete_id": self.athlete_id,
+            "athlete_name": self.athlete.name if self.athlete else "",
+            "plan_id": self.plan_id,
+            "plan_title": self.plan.title if self.plan else "",
+            "assigned_date": self.assigned_date.isoformat() if self.assigned_date else None,
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "status": self.status,
+            "progress_pct": self.progress_pct,
+            "coach_notes": self.coach_notes,
+            "completed_days": self.get_completed_day_ids(),
+        }
+
+    def __repr__(self):
+        return f"<AthletePlan a={self.athlete_id} p={self.plan_id} [{self.status}]>"

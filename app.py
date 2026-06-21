@@ -25,7 +25,7 @@ from config import Config, BrandConfig, AIPrompt
 from models import (
     db, User, Athlete, BodyMetric, FitnessTest,
     TestRecord, TrainingLog, InjuryRecord, ChatMessage,
-    Video
+    Video, TrainingPlan, PlanDay, AthletePlan
 )
 
 # 导入视频服务
@@ -167,7 +167,7 @@ def dashboard():
     latest_metric = None
     if athlete:
         recent_metrics = BodyMetric.query.filter_by(athlete_id=athlete.id) \
-            .order_by(BodyMetric.record_date.desc()).limit(5).all()
+            .order_by(BodyMetric.record_date.desc()).limit(10).all()
         latest_metric = recent_metrics[0] if recent_metrics else None
 
     # 获取最近的测试记录
@@ -182,6 +182,106 @@ def dashboard():
         recent_training = TrainingLog.query.filter_by(athlete_id=athlete.id) \
             .order_by(TrainingLog.session_date.desc()).limit(5).all()
 
+    # === 新增：本周训练负荷数据（柱状图用） ===
+    weekly_training = []
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())  # 周一
+    day_labels = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+    if athlete:
+        week_logs = TrainingLog.query.filter_by(athlete_id=athlete.id) \
+            .filter(TrainingLog.session_date >= week_start) \
+            .filter(TrainingLog.session_date <= week_start + timedelta(days=6)) \
+            .all()
+        day_map = {}
+        for log in week_logs:
+            if log.session_date and log.duration_min:
+                idx = (log.session_date - week_start).days
+                day_map[idx] = day_map.get(idx, 0) + log.duration_min
+        max_dur = max(day_map.values()) if day_map else 60
+        for i in range(7):
+            d = week_start + timedelta(days=i)
+            dur = day_map.get(i, 0)
+            weekly_training.append({
+                "day": day_labels[i],
+                "date": d.isoformat(),
+                "duration": dur,
+                "height_pct": round((dur / max(max_dur, 1)) * 100, 1),
+                "is_today": d == today,
+            })
+
+    # === 新增：体脂/体重趋势（最近10条，用于迷你折线） ===
+    body_trend = []
+    if athlete:
+        all_metrics = BodyMetric.query.filter_by(athlete_id=athlete.id) \
+            .order_by(BodyMetric.record_date.asc()).all()
+        if len(all_metrics) >= 2:
+            # 体重趋势
+            weight_points = []
+            for m in all_metrics:
+                if m.weight_kg:
+                    weight_points.append({"date": m.record_date.isoformat(), "value": m.weight_kg})
+            if weight_points:
+                weight_vals = [p["value"] for p in weight_points]
+                w_min, w_max = min(weight_vals), max(weight_vals)
+                w_range = max(w_max - w_min, 1)
+                weight_delta = weight_vals[-1] - weight_vals[0]
+                body_trend.append({
+                    "label": "体重",
+                    "unit": "kg",
+                    "points": weight_points,
+                    "current": weight_vals[-1],
+                    "delta": round(weight_delta, 1),
+                    "direction": "up" if weight_delta > 0.5 else ("down" if weight_delta < -0.5 else "flat"),
+                    "dot_heights": [round((v - w_min) / w_range * 100, 1) for v in weight_vals],
+                })
+            # 体脂趋势
+            bf_points = []
+            for m in all_metrics:
+                if m.body_fat_pct:
+                    bf_points.append({"date": m.record_date.isoformat(), "value": m.body_fat_pct})
+            if bf_points:
+                bf_vals = [p["value"] for p in bf_points]
+                bf_min, bf_max = min(bf_vals), max(bf_vals)
+                bf_range = max(bf_max - bf_min, 1)
+                bf_delta = bf_vals[-1] - bf_vals[0]
+                body_trend.append({
+                    "label": "体脂率",
+                    "unit": "%",
+                    "points": bf_points,
+                    "current": bf_vals[-1],
+                    "delta": round(bf_delta, 1),
+                    "direction": "up" if bf_delta > 0.5 else ("down" if bf_delta < -0.5 else "flat"),
+                    "dot_heights": [round((v - bf_min) / bf_range * 100, 1) for v in bf_vals],
+                })
+
+    # === 新增：测试对比（最近两次对比） ===
+    test_comparisons = []
+    if athlete:
+        # 按 test_id 分组，取最近两次记录
+        from collections import defaultdict
+        by_test = defaultdict(list)
+        for tr in TestRecord.query.filter_by(athlete_id=athlete.id) \
+                .order_by(TestRecord.test_date.desc()).all():
+            by_test[tr.test_id].append(tr)
+        for test_id, records in by_test.items():
+            if len(records) >= 2:
+                latest = records[0]
+                prev = records[1]
+                diff = latest.raw_value - prev.raw_value
+                test_name = latest.test.name if latest.test else f"测试#{test_id}"
+                unit = latest.test.unit if latest.test else ""
+                test_comparisons.append({
+                    "name": test_name,
+                    "unit": unit,
+                    "prev_value": prev.raw_value,
+                    "latest_value": latest.raw_value,
+                    "prev_date": prev.test_date.isoformat() if prev.test_date else "",
+                    "latest_date": latest.test_date.isoformat() if latest.test_date else "",
+                    "diff": round(diff, 2),
+                    "diff_str": f"{'+' if diff > 0 else ''}{round(diff, 2)}",
+                    "direction": "positive" if diff > 0 else ("negative" if diff < 0 else "neutral"),
+                })
+
     return render_template(
         "dashboard.html",
         user=user,
@@ -190,6 +290,9 @@ def dashboard():
         recent_metrics=recent_metrics,
         recent_tests=recent_tests,
         recent_training=recent_training,
+        weekly_training=weekly_training,
+        body_trend=body_trend,
+        test_comparisons=test_comparisons,
         brand=BrandConfig,
     )
 
@@ -747,6 +850,7 @@ def api_create_injury():
             severity=data.get("severity", "mild"),
             description=data.get("description", "").strip(),
             status=data.get("status", "active"),
+            recovery_date=datetime.strptime(data["recovery_date"], "%Y-%m-%d").date() if data.get("recovery_date") else None,
             notes=data.get("notes", "").strip() or None,
         )
         db.session.add(injury)
@@ -1247,6 +1351,125 @@ p{font-size:1.2rem}a{color:#a0c040;text-decoration:none}</style></head>
 <body><div><div class="e500">500</div><p>服务器内部错误</p><p><a href="/">返回首页</a></p></div></body></html>""", 500
 
 
+# ==================== 伤病追踪看板 ====================
+
+@app.route("/injuries")
+@login_required
+def injury_tracker():
+    """伤病追踪看板 — 人体图 + 时间线"""
+    user = g.current_user
+    athlete = Athlete.query.filter_by(user_id=user.id).first()
+    return render_template("injury_tracker.html", user=user, athlete=athlete, brand=BrandConfig)
+
+
+@app.route("/api/injuries/timeline")
+@login_required
+def api_injuries_timeline():
+    """伤病时间线 JSON（当前运动员）"""
+    user = g.current_user
+    athlete = Athlete.query.filter_by(user_id=user.id).first()
+    if not athlete:
+        return jsonify({"injuries": []})
+    injuries = InjuryRecord.query.filter_by(athlete_id=athlete.id) \
+        .order_by(InjuryRecord.injury_date.desc()).all()
+    return jsonify({"injuries": [i.to_dict() for i in injuries]})
+
+
+# ==================== 队内排行榜 ====================
+
+@app.route("/coach/leaderboard")
+@login_required
+def coach_leaderboard():
+    """队内排行榜页面"""
+    if g.current_user.role not in ("coach", "doctor", "analyst", "admin"):
+        return render_template("error.html", error="权限不足", brand=BrandConfig), 403
+    tests = FitnessTest.query.order_by(FitnessTest.name).all()
+    return render_template("coach_leaderboard.html", user=g.current_user, tests=tests, brand=BrandConfig)
+
+
+# ==================== ACWR 训练负荷预警 ====================
+
+@app.route("/api/athlete/<int:athlete_id>/acwr")
+@login_required
+def api_athlete_acwr(athlete_id):
+    """计算运动员 ACWR (急性:慢性工作负荷比)"""
+    athlete = Athlete.query.get(athlete_id)
+    if not athlete:
+        return jsonify({"error": "运动员不存在"}), 404
+    if g.current_user.role == "athlete" and athlete.user_id != g.current_user.id:
+        return jsonify({"error": "权限不足"}), 403
+
+    today = date.today()
+
+    # 取最近28天的训练日志
+    logs = TrainingLog.query.filter_by(athlete_id=athlete_id) \
+        .filter(TrainingLog.session_date <= today) \
+        .order_by(TrainingLog.session_date.desc()).all()
+
+    if not logs:
+        return jsonify({
+            "acwr": None,
+            "acute_load_7d": 0,
+            "chronic_load_28d": 0,
+            "zone": "nodata",
+            "zone_label": "无数据",
+            "message": "暂无训练数据，无法计算 ACWR",
+        })
+
+    # sRPE 负荷 = 训练时长(分钟) × RPE
+    def sRPE(log):
+        if log.duration_min and log.rpe:
+            return log.duration_min * log.rpe
+        return 0
+
+    loads = [{"date": log.session_date, "load": sRPE(log)} for log in logs]
+
+    # 急性负荷：最近7天日均 sRPE
+    cutoff_7d = today - timedelta(days=7)
+    acute_loads = [l["load"] for l in loads if l["date"] >= cutoff_7d]
+    acute_load = sum(acute_loads) / max(len(acute_loads), 1)
+
+    # 慢性负荷：最近28天日均 sRPE
+    cutoff_28d = today - timedelta(days=28)
+    chronic_loads = [l["load"] for l in loads if l["date"] >= cutoff_28d]
+    chronic_load = sum(chronic_loads) / max(len(chronic_loads), 1)
+
+    # ACWR
+    if chronic_load > 0:
+        acwr = round(acute_load / chronic_load, 2)
+    else:
+        acwr = None
+
+    # 风险区间判定
+    if acwr is None:
+        zone, zone_label, zone_color = "nodata", "无数据", "#606878"
+        message = "慢性负荷为0，无法计算 ACWR"
+    elif acwr < 0.8:
+        zone, zone_label, zone_color = "low", "负荷偏低", "#2196f3"
+        message = "训练负荷偏低，可能处于减量期"
+    elif acwr <= 1.3:
+        zone, zone_label, zone_color = "safe", "安全区", "#4caf50"
+        message = "训练负荷处于安全范围"
+    elif acwr <= 1.5:
+        zone, zone_label, zone_color = "caution", "注意", "#ff9800"
+        message = "训练负荷偏高，需关注恢复状态"
+    else:
+        zone, zone_label, zone_color = "danger", "高风险", "#e53935"
+        message = "训练负荷过高，伤病风险显著增加！建议减量"
+
+    return jsonify({
+        "acwr": acwr,
+        "acute_load_7d": round(acute_load, 1),
+        "chronic_load_28d": round(chronic_load, 1),
+        "zone": zone,
+        "zone_label": zone_label,
+        "zone_color": zone_color,
+        "message": message,
+        "total_sessions_7d": len(acute_loads),
+        "total_sessions_28d": len(chronic_loads),
+    })
+
+
 # ==================== 统计分析 API ====================
 
 # 初始化分析引擎（全局单例）
@@ -1415,6 +1638,431 @@ def api_athlete_report_pdf(athlete_id):
     except Exception as e:
         logger.error("PDF 报告生成失败: %s", str(e))
         return jsonify({"error": f"PDF 生成失败: {str(e)}"}), 500
+
+
+# ==================== 训练计划模块 — 教练端页面路由 ====================
+
+@app.route("/coach/plans")
+@login_required
+def coach_plans():
+    """教练端 — 训练计划管理页面"""
+    if g.current_user.role not in ("coach", "doctor", "analyst", "admin"):
+        return render_template("error.html", error="权限不足", brand=BrandConfig), 403
+
+    plans = TrainingPlan.query.filter_by(coach_id=g.current_user.id).order_by(
+        TrainingPlan.created_at.desc()).all()
+    athletes = Athlete.query.all()
+
+    return render_template(
+        "coach_plans.html",
+        user=g.current_user,
+        plans=plans,
+        athletes=athletes,
+        brand=BrandConfig,
+    )
+
+
+@app.route("/coach/plans/<int:plan_id>/edit")
+@login_required
+def plan_editor(plan_id):
+    """教练端 — 训练计划编辑页（周×天网格）"""
+    if g.current_user.role not in ("coach", "doctor", "analyst", "admin"):
+        return render_template("error.html", error="权限不足", brand=BrandConfig), 403
+
+    plan = TrainingPlan.query.get(plan_id)
+    if not plan:
+        return render_template("error.html", error="计划不存在", brand=BrandConfig), 404
+    if plan.coach_id != g.current_user.id and g.current_user.role != "admin":
+        return render_template("error.html", error="权限不足", brand=BrandConfig), 403
+
+    days = PlanDay.query.filter_by(plan_id=plan_id).order_by(
+        PlanDay.week_number, PlanDay.day_number).all()
+
+    return render_template(
+        "plan_editor.html",
+        user=g.current_user,
+        plan=plan,
+        days=days,
+        brand=BrandConfig,
+    )
+
+
+@app.route("/coach/plans/<int:plan_id>/assign")
+@login_required
+def coach_plan_assign(plan_id):
+    """教练端 — 分配计划页面"""
+    if g.current_user.role not in ("coach", "doctor", "analyst", "admin"):
+        return render_template("error.html", error="权限不足", brand=BrandConfig), 403
+
+    plan = TrainingPlan.query.get(plan_id)
+    if not plan:
+        return render_template("error.html", error="计划不存在", brand=BrandConfig), 404
+
+    athletes = Athlete.query.all()
+    # 获取已分配此计划的运动员
+    assigned = AthletePlan.query.filter_by(plan_id=plan_id).all()
+    assigned_ids = [ap.athlete_id for ap in assigned]
+
+    return render_template(
+        "coach_plan_assign.html",
+        user=g.current_user,
+        plan=plan,
+        athletes=athletes,
+        assigned=assigned,
+        assigned_ids=assigned_ids,
+        brand=BrandConfig,
+    )
+
+
+# ==================== 训练计划模块 — 运动员端页面路由 ====================
+
+@app.route("/athlete/my-plan")
+@login_required
+def athlete_my_plan():
+    """运动员端 — 查看我的训练计划"""
+    user = g.current_user
+    athlete = Athlete.query.filter_by(user_id=user.id).first()
+    if not athlete:
+        return render_template("error.html", error="请先完善运动员档案", brand=BrandConfig), 400
+
+    # 查找当前激活的训练计划
+    athlete_plan = AthletePlan.query.filter_by(
+        athlete_id=athlete.id, status="active"
+    ).first()
+
+    plan = None
+    days = []
+    plan_days = []
+    completed_ids = []
+
+    if athlete_plan:
+        plan = athlete_plan.plan
+        plan_days = PlanDay.query.filter_by(plan_id=plan.id).order_by(
+            PlanDay.week_number, PlanDay.day_number).all()
+        completed_ids = athlete_plan.get_completed_day_ids()
+
+        # 按周分组
+        days_by_week = {}
+        for d in plan_days:
+            days_by_week.setdefault(d.week_number, []).append(d)
+    else:
+        days_by_week = {}
+
+    # 找出今天的训练
+    import datetime as dt
+    today_weekday = dt.date.today().isoweekday()  # 1=Monday, 7=Sunday
+    today_days = [d for d in plan_days if d.day_number == today_weekday] if athlete_plan else []
+
+    return render_template(
+        "athlete_my_plan.html",
+        user=user,
+        athlete=athlete,
+        athlete_plan=athlete_plan,
+        plan=plan,
+        plan_days=plan_days,
+        completed_ids=completed_ids,
+        days_by_week=days_by_week,
+        today_days=today_days,
+        today_weekday=today_weekday,
+        brand=BrandConfig,
+    )
+
+
+# ==================== 训练计划模块 — API 路由 ====================
+
+@app.route("/api/plans", methods=["GET", "POST"])
+@login_required
+def api_plans():
+    """获取或创建训练计划"""
+    # GET: 列表
+    if request.method == "GET":
+        plans = TrainingPlan.query.filter_by(
+            coach_id=g.current_user.id
+        ).order_by(TrainingPlan.created_at.desc()).all()
+        return jsonify([p.to_dict() for p in plans])
+
+    # POST: 创建
+    data = request.get_json()
+    title = (data.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "计划标题不能为空"}), 400
+
+    plan = TrainingPlan(
+        coach_id=g.current_user.id,
+        title=title,
+        description=data.get("description", "").strip(),
+        sport_type=data.get("sport_type", "").strip(),
+        duration_weeks=int(data.get("duration_weeks", 4)),
+    )
+    db.session.add(plan)
+    db.session.commit()
+
+    # 自动生成空的周×天结构
+    _init_plan_days(plan)
+
+    logger.info("训练计划已创建: %s (教练=%s)", plan.title, g.current_user.username)
+    return jsonify({"success": True, "plan": plan.to_dict()}), 201
+
+
+@app.route("/api/plans/<int:plan_id>", methods=["GET", "PUT", "DELETE"])
+@login_required
+def api_plan_detail(plan_id):
+    """获取/更新/删除单个训练计划"""
+    plan = TrainingPlan.query.get(plan_id)
+    if not plan:
+        return jsonify({"error": "计划不存在"}), 404
+
+    # 权限检查
+    if plan.coach_id != g.current_user.id and g.current_user.role != "admin":
+        return jsonify({"error": "权限不足"}), 403
+
+    if request.method == "GET":
+        days = PlanDay.query.filter_by(plan_id=plan_id).order_by(
+            PlanDay.week_number, PlanDay.day_number).all()
+        return jsonify({
+            "plan": plan.to_dict(),
+            "days": [d.to_dict() for d in days],
+        })
+
+    if request.method == "PUT":
+        data = request.get_json()
+        if "title" in data:
+            plan.title = data["title"].strip()
+        if "description" in data:
+            plan.description = data["description"].strip()
+        if "sport_type" in data:
+            plan.sport_type = data["sport_type"].strip()
+        if "duration_weeks" in data:
+            plan.duration_weeks = int(data["duration_weeks"])
+        if "is_active" in data:
+            plan.is_active = bool(data["is_active"])
+        db.session.commit()
+        return jsonify({"success": True, "plan": plan.to_dict()})
+
+    if request.method == "DELETE":
+        db.session.delete(plan)
+        db.session.commit()
+        logger.info("训练计划已删除: %s", plan.title)
+        return jsonify({"success": True})
+
+
+@app.route("/api/plans/<int:plan_id>/days", methods=["GET", "PUT"])
+@login_required
+def api_plan_days(plan_id):
+    """获取或批量更新计划的天内容"""
+    plan = TrainingPlan.query.get(plan_id)
+    if not plan:
+        return jsonify({"error": "计划不存在"}), 404
+
+    if plan.coach_id != g.current_user.id and g.current_user.role != "admin":
+        return jsonify({"error": "权限不足"}), 403
+
+    if request.method == "GET":
+        days = PlanDay.query.filter_by(plan_id=plan_id).order_by(
+            PlanDay.week_number, PlanDay.day_number).all()
+        return jsonify([d.to_dict() for d in days])
+
+    if request.method == "PUT":
+        data = request.get_json()
+        updated = []
+        for day_data in data:
+            day_id = day_data.get("id")
+            if day_id:
+                # 更新已有天
+                day = PlanDay.query.get(day_id)
+                if day and day.plan_id == plan_id:
+                    _update_day_from_dict(day, day_data)
+                    updated.append(day)
+            else:
+                # 新建天
+                day = PlanDay(plan_id=plan_id)
+                _update_day_from_dict(day, day_data)
+                db.session.add(day)
+                updated.append(day)
+        db.session.commit()
+        return jsonify({"success": True, "days": [d.to_dict() for d in updated]})
+
+
+def _update_day_from_dict(day, data):
+    """辅助: 从字典更新 PlanDay 字段"""
+    if "week_number" in data:
+        day.week_number = int(data["week_number"])
+    if "day_number" in data:
+        day.day_number = int(data["day_number"])
+    if "focus_area" in data:
+        day.focus_area = data["focus_area"]
+    if "warmup" in data:
+        day.warmup = data["warmup"]
+    if "main_workout" in data:
+        day.main_workout = data["main_workout"]
+    if "cool_down" in data:
+        day.cool_down = data["cool_down"]
+    if "duration_min" in data:
+        day.duration_min = int(data["duration_min"]) if data["duration_min"] else None
+    if "notes" in data:
+        day.notes = data["notes"]
+
+
+def _init_plan_days(plan):
+    """为计划初始化周×天的空表格"""
+    DAY_NAMES = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+    for w in range(1, plan.duration_weeks + 1):
+        for d in range(1, 8):
+            day = PlanDay(
+                plan_id=plan.id,
+                week_number=w,
+                day_number=d,
+                focus_area="",
+                warmup="",
+                main_workout="",
+                cool_down="",
+                duration_min=60,
+                notes="",
+            )
+            db.session.add(day)
+    db.session.commit()
+
+
+@app.route("/api/plans/<int:plan_id>/assign", methods=["POST"])
+@login_required
+def api_plan_assign(plan_id):
+    """分配训练计划给运动员"""
+    plan = TrainingPlan.query.get(plan_id)
+    if not plan:
+        return jsonify({"error": "计划不存在"}), 404
+
+    if plan.coach_id != g.current_user.id and g.current_user.role != "admin":
+        return jsonify({"error": "权限不足"}), 403
+
+    data = request.get_json()
+    athlete_id = int(data.get("athlete_id", 0))
+    if not athlete_id:
+        return jsonify({"error": "请选择运动员"}), 400
+
+    athlete = Athlete.query.get(athlete_id)
+    if not athlete:
+        return jsonify({"error": "运动员不存在"}), 404
+
+    # 检查是否已分配
+    existing = AthletePlan.query.filter_by(athlete_id=athlete_id, plan_id=plan_id).first()
+    if existing:
+        return jsonify({"error": "该运动员已被分配此计划"}), 409
+
+    ap = AthletePlan(
+        athlete_id=athlete_id,
+        plan_id=plan_id,
+        assigned_date=date.today(),
+        status="active",
+        coach_notes=data.get("coach_notes", "").strip(),
+    )
+    db.session.add(ap)
+    db.session.commit()
+
+    logger.info("训练计划已分配: 计划=%s → 运动员=%s", plan.title, athlete.name)
+    return jsonify({"success": True, "athlete_plan": ap.to_dict()}), 201
+
+
+@app.route("/api/athlete/me/plan")
+@login_required
+def api_athlete_my_plan():
+    """运动员端 — 获取我的训练计划"""
+    user = g.current_user
+    athlete = Athlete.query.filter_by(user_id=user.id).first()
+    if not athlete:
+        return jsonify({"error": "请先完善运动员档案"}), 400
+
+    athlete_plan = AthletePlan.query.filter_by(
+        athlete_id=athlete.id, status="active"
+    ).first()
+
+    if not athlete_plan:
+        return jsonify({"plan": None, "days": [], "athlete_plan": None})
+
+    plan = athlete_plan.plan
+    days = PlanDay.query.filter_by(plan_id=plan.id).order_by(
+        PlanDay.week_number, PlanDay.day_number).all()
+
+    return jsonify({
+        "plan": plan.to_dict() if plan else None,
+        "athlete_plan": athlete_plan.to_dict(),
+        "days": [d.to_dict() for d in days],
+    })
+
+
+@app.route("/api/athlete/me/plan/progress", methods=["POST"])
+@login_required
+def api_athlete_plan_progress():
+    """运动员端 — 标记某天已完成"""
+    user = g.current_user
+    athlete = Athlete.query.filter_by(user_id=user.id).first()
+    if not athlete:
+        return jsonify({"error": "请先完善运动员档案"}), 400
+
+    athlete_plan = AthletePlan.query.filter_by(
+        athlete_id=athlete.id, status="active"
+    ).first()
+    if not athlete_plan:
+        return jsonify({"error": "当前没有激活的训练计划"}), 400
+
+    data = request.get_json()
+    day_id = int(data.get("day_id", 0))
+    action = data.get("action", "toggle")  # toggle / mark / unmark
+
+    if not day_id:
+        return jsonify({"error": "请指定训练日"}), 400
+
+    # 验证 day_id 属于当前计划
+    day = PlanDay.query.get(day_id)
+    if not day or day.plan_id != athlete_plan.plan_id:
+        return jsonify({"error": "训练日不属于当前计划"}), 400
+
+    completed = athlete_plan.get_completed_day_ids()
+
+    if action == "mark" or (action == "toggle" and day_id not in completed):
+        if day_id not in completed:
+            completed.append(day_id)
+    elif action == "unmark" or (action == "toggle" and day_id in completed):
+        completed = [d for d in completed if d != day_id]
+
+    athlete_plan.set_completed_day_ids(completed)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "progress_pct": athlete_plan.progress_pct,
+        "completed_days": completed,
+    })
+
+
+@app.route("/api/coach/plans/<int:plan_id>/progress")
+@login_required
+def api_coach_plan_progress(plan_id):
+    """教练端 — 查看计划的各运动员执行进度"""
+    if g.current_user.role not in ("coach", "doctor", "analyst", "admin"):
+        return jsonify({"error": "权限不足"}), 403
+
+    plan = TrainingPlan.query.get(plan_id)
+    if not plan:
+        return jsonify({"error": "计划不存在"}), 404
+
+    assigned = AthletePlan.query.filter_by(plan_id=plan_id).all()
+    return jsonify([ap.to_dict() for ap in assigned])
+
+
+@app.route("/api/athlete/plans/unassign/<int:athlete_plan_id>", methods=["DELETE"])
+@login_required
+def api_unassign_plan(athlete_plan_id):
+    """教练端 — 取消分配"""
+    if g.current_user.role not in ("coach", "doctor", "analyst", "admin"):
+        return jsonify({"error": "权限不足"}), 403
+
+    ap = AthletePlan.query.get(athlete_plan_id)
+    if not ap:
+        return jsonify({"error": "分配记录不存在"}), 404
+
+    db.session.delete(ap)
+    db.session.commit()
+    return jsonify({"success": True})
 
 
 # ==================== 上下文处理器 ====================

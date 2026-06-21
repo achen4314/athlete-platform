@@ -11,6 +11,20 @@
       <span class="card-title">{% if athlete %}✏️ 编辑档案{% else %}🆕 新建档案{% endif %}</span>
     </div>
 
+    <!-- 头像占位 -->
+    <div class="profile-avatar-section">
+      <div class="profile-avatar-circle" id="avatarCircle" title="头像">
+        {% if athlete and athlete.name %}
+          {{ athlete.name[0] }}
+        {% else %}
+          👤
+        {% endif %}
+      </div>
+      <div style="font-size:0.72rem;color:var(--text-muted);margin-top:8px;">
+        {% if athlete %}{{ athlete.name }}{% else %}新运动员{% endif %}
+      </div>
+    </div>
+
     <div class="guide-hint" style="padding:10px 16px;font-size:0.78rem;color:var(--brand-gold);background:rgba(192,192,96,0.05);margin-bottom:12px;">
       💡 请尽可能完整地填写以下信息，这将影响 AI 分析的准确性和训练建议的个性化程度。
     </div>

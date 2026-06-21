@@ -1520,6 +1520,233 @@ textarea.form-input {
 }
 
 /* ============================================================
+   仪表盘增强 — 训练负荷柱状图 / 体脂趋势 / 测试对比
+   ============================================================ */
+
+/* ── 4 列指标网格 ── */
+.metric-grid-4col {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+  .metric-grid-4col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .metric-grid-4col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── 训练负荷柱状图 (纯 CSS) ── */
+.training-load-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 180px;
+  padding: 8px 4px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.training-load-bar .bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.training-load-bar .bar-fill {
+  width: 100%;
+  max-width: 48px;
+  background: linear-gradient(180deg, var(--brand-green) 0%, rgba(160,192,64,.35) 100%);
+  border-radius: 4px 4px 0 0;
+  transition: height .4s cubic-bezier(.4,0,.2,1);
+  position: relative;
+  min-height: 4px;
+}
+
+.training-load-bar .bar-fill:hover {
+  background: linear-gradient(180deg, #b3d455 0%, rgba(179,212,85,.5) 100%);
+  filter: brightness(1.15);
+}
+
+.training-load-bar .bar-value {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--brand-gold);
+  margin-bottom: 4px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all .3s ease;
+}
+
+.training-load-bar .bar-col:hover .bar-value {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.training-load-bar .bar-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-align: center;
+}
+
+.training-load-bar .bar-col.today .bar-fill {
+  background: linear-gradient(180deg, var(--brand-gold) 0%, rgba(192,192,96,.4) 100%);
+}
+
+.training-load-bar .bar-col.today .bar-label {
+  color: var(--brand-gold);
+  font-weight: 700;
+}
+
+/* ── 体脂/体重趋势迷你数据卡片 ── */
+.trend-mini-card {
+  padding: 12px 0;
+}
+
+.trend-mini-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,.02);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.trend-mini-row:hover {
+  background: rgba(160,192,64,.06);
+}
+
+.trend-mini-row .trend-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  min-width: 60px;
+  font-weight: 600;
+}
+
+.trend-mini-row .trend-spark {
+  flex: 1;
+  position: relative;
+  height: 36px;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  padding: 0 4px;
+}
+
+.trend-mini-row .spark-dot {
+  width: 5px;
+  border-radius: 2px;
+  background: var(--brand-green);
+  transition: height .3s ease;
+  min-height: 2px;
+}
+
+.trend-mini-row .trend-arrow {
+  font-size: 0.85rem;
+  font-weight: 700;
+  min-width: 48px;
+  text-align: right;
+}
+
+.trend-arrow.trend-up   { color: #4caf50; }
+.trend-arrow.trend-down { color: #e53935; }
+.trend-arrow.trend-flat { color: var(--text-muted); }
+
+.trend-mini-row .trend-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 52px;
+  text-align: right;
+}
+
+/* ── 测试对比卡 ── */
+.test-compare-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.test-compare-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.84rem;
+}
+
+.test-compare-item:last-child { border-bottom: none; }
+
+.test-compare-item .tc-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.test-compare-item .tc-values {
+  text-align: right;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.test-compare-item .tc-delta {
+  min-width: 64px;
+  text-align: right;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.tc-delta.positive { color: #4caf50; }
+.tc-delta.negative { color: #e53935; }
+.tc-delta.neutral  { color: var(--text-muted); }
+
+.test-compare-item .tc-date {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  display: block;
+}
+
+/* ── 档案页头像占位 ── */
+.profile-avatar-section {
+  text-align: center;
+  padding: 20px 16px 8px;
+}
+
+.profile-avatar-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--brand-teal);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--brand-gold);
+  border: 3px solid var(--brand-green);
+  box-shadow: 0 0 20px rgba(160,192,64,.15);
+  transition: var(--transition);
+}
+
+.profile-avatar-circle:hover {
+  box-shadow: 0 0 28px rgba(160,192,64,.3);
+  transform: scale(1.04);
+}
+
+/* ============================================================
    引导提示
    ============================================================ */
 .guide-hint {
@@ -1718,3 +1945,377 @@ textarea.form-input {
     max-width: calc(100vw - 24px);
   }
 }
+
+/* ============================================================
+   训练计划模块
+   ============================================================ */
+
+/* 计划头部 */
+.plan-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* 计划卡片网格 */
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+/* 计划卡片 */
+.plan-card {
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition);
+}
+.plan-card:hover {
+  border-color: var(--brand-green);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(160,192,64,.1);
+}
+
+.plan-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.plan-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--brand-green);
+}
+.plan-card-body { flex: 1; }
+.plan-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.plan-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+/* 计划徽章 */
+.plan-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-active {
+  background: rgba(76,175,80,.2);
+  color: var(--success);
+}
+.badge-inactive {
+  background: rgba(96,104,120,.2);
+  color: var(--text-muted);
+}
+
+/* 弹窗 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0,0,0,.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 12px 40px rgba(0,0,0,.5);
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.modal-header h3 {
+  margin: 0;
+  color: var(--brand-green);
+  font-size: 1.05rem;
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  font-family: inherit;
+}
+.modal-close:hover { color: var(--danger); }
+.modal-body { padding: 20px; }
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* 空状态 */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.empty-state .empty-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+.empty-state p {
+  font-size: 1rem;
+  margin: 4px 0;
+}
+
+/* 计划编辑器页顶部信息 */
+.plan-header-info {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  align-items: center;
+}
+.plan-header-info .info-item {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.plan-header-info .info-item strong {
+  color: var(--text-primary);
+}
+
+/* 进度条 */
+.progress-bar-wrap {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  border: 1px solid var(--border-subtle);
+}
+.progress-bar-wrap .progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.progress-track {
+  height: 10px;
+  background: var(--bg-deep);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-green), var(--brand-gold));
+  border-radius: 5px;
+  transition: width 0.4s ease;
+}
+
+/* 今日高亮卡片 */
+.today-highlight {
+  background: linear-gradient(135deg, var(--bg-card) 0%, rgba(160,192,64,.1) 100%);
+  border: 1px solid var(--brand-green);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+.today-highlight .today-label {
+  display: inline-block;
+  background: var(--brand-green);
+  color: #1a1a2e;
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+/* 周块 */
+.week-block { margin-bottom: 8px; }
+.week-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--brand-green);
+  padding: 10px 16px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border: 1px solid var(--border-subtle);
+  border-bottom: none;
+}
+
+/* 天行 */
+.day-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-subtle);
+  border-top: none;
+  background: var(--bg-card);
+  transition: var(--transition);
+  cursor: pointer;
+}
+.day-row:last-child { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+.day-row:hover { background: rgba(160,192,64,.05); }
+.day-row.completed { opacity: 0.65; }
+.day-row.completed .day-badge { background: var(--success); }
+
+.day-badge {
+  min-width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-deep);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.day-badge .day-num {
+  font-size: 1.1rem;
+  color: var(--brand-green);
+  line-height: 1;
+}
+.day-badge .day-name {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.day-content { flex: 1; min-width: 0; }
+.day-content .focus {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.day-content .detail {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+.day-content .detail strong {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.day-meta {
+  text-align: right;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+.day-meta .duration {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.day-meta .check-btn {
+  margin-top: 4px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--brand-green);
+  background: transparent;
+  color: var(--brand-green);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-family: inherit;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.day-meta .check-btn:hover {
+  background: var(--brand-green);
+  color: #1a1a2e;
+}
+.day-meta .check-btn.checked {
+  background: var(--success);
+  color: white;
+  border-color: var(--success);
+}
+
+/* 空计划 */
+.empty-plan {
+  text-align: center;
+  padding: 60px 20px;
+}
+.empty-plan .empty-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* 天详情弹窗 */
+.day-detail-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0,0,0,.6);
+  justify-content: center;
+  align-items: center;
+}
+.day-detail-modal .modal-content {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  max-width: 550px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 300;
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s, transform 0.3s;
+  max-width: 360px;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.toast-hiding {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+.toast-success { background: var(--success); }
+.toast-error { background: var(--danger); }
+.toast-info { background: var(--info); }
+.toast-warning { background: var(--warning); }

@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block title %}我的训练计划 - 运动员平台{% endblock %}
+{% block page_title %}🏃 我的训练计划{% endblock %}
+
+{% block extra_head %}
+<style>
+.plan-container { display:flex; flex-direction:column; gap:20px; }
+.today-highlight {
+  background:linear-gradient(135deg, var(--bg-card) 0%, rgba(160,192,64,.1) 100%);
+  border:1px solid var(--brand-green); border-radius:var(--radius-lg);
+  padding:20px;
+}
+.today-highlight .today-label {
+  display:inline-block; background:var(--brand-green); color:#1a1a2e;
+  padding:3px 12px; border-radius:12px; font-size:0.75rem; font-weight:700;
+  margin-bottom:12px;
+}
+.week-block { margin-bottom:8px; }
+.week-title {
+  font-size:0.95rem; font-weight:700; color:var(--brand-green);
+  padding:10px 16px; background:var(--bg-surface); border-radius:var(--radius-sm) var(--radius-sm) 0 0;
+  border:1px solid var(--border-subtle); border-bottom:none;
+}
+.day-row {
+  display:flex; align-items:flex-start; gap:12px;
+  padding:12px 16px; border:1px solid var(--border-subtle); border-top:none;
+  background:var(--bg-card); transition:var(--transition);
+  cursor:pointer;
+}
+.day-row:last-child { border-radius:0 0 var(--radius-sm) var(--radius-sm); }
+.day-row:hover { background:rgba(160,192,64,.05); }
+.day-row.completed { opacity:0.65; }
+.day-row.completed .day-badge { background:var(--success); }
+.day-badge {
+  min-width:48px; height:48px; border-radius:var(--radius-sm);
+  background:var(--bg-deep); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; font-weight:700;
+  border:1px solid var(--border-subtle); flex-shrink:0;
+}
+.day-badge .day-num { font-size:1.1rem; color:var(--brand-green); line-height:1; }
+.day-badge .day-name { font-size:0.65rem; color:var(--text-muted); }
+.day-content { flex:1; min-width:0; }
+.day-content .focus { font-weight:600; color:var(--text-primary); margin-bottom:4px; }
+.day-content .detail { font-size:0.8rem; color:var(--text-secondary); margin-bottom:2px; }
+.day-content .detail strong { color:var(--text-muted); font-weight:500; }
+.day-meta { text-align:right; flex-shrink:0; min-width:80px; }
+.day-meta .duration { font-size:0.8rem; color:var(--text-muted); }
+.day-meta .check-btn {
+  margin-top:4px; padding:6px 14px; border-radius:var(--radius-sm);
+  border:1px solid var(--brand-green); background:transparent;
+  color:var(--brand-green); cursor:pointer; font-size:0.75rem;
+  font-family:inherit; transition:var(--transition); white-space:nowrap;
+}
+.day-meta .check-btn:hover { background:var(--brand-green); color:#1a1a2e; }
+.day-meta .check-btn.checked { background:var(--success); color:white; border-color:var(--success); }
+.progress-bar-wrap {
+  background:var(--bg-card); border-radius:var(--radius-md);
+  padding:16px 20px; border:1px solid var(--border-subtle);
+}
+.progress-bar-wrap .progress-label {
+  display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;
+}
+.progress-track {
+  height:10px; background:var(--bg-deep); border-radius:5px; overflow:hidden;
+}
+.progress-fill {
+  height:100%; background:linear-gradient(90deg, var(--brand-green), var(--brand-gold));
+  border-radius:5px; transition:width 0.4s ease;
+}
+.empty-plan {
+  text-align:center; padding:60px 20px;
+}
+.empty-plan .empty-icon { font-size:3rem; margin-bottom:16px; opacity:0.5; }
+.plan-header-info {
+  display:flex; gap:20px; flex-wrap:wrap;
+  padding:14px 20px; background:var(--bg-card); border-radius:var(--radius-md);
+  border:1px solid var(--border-subtle); align-items:center;
+}
+.plan-header-info .info-item { font-size:0.85rem; color:var(--text-secondary); }
+.plan-header-info .info-item strong { color:var(--text-primary); }
+.day-detail-modal {
+  display:none; position:fixed; inset:0; z-index:200;
+  background:rgba(0,0,0,.6); justify-content:center; align-items:center;
+}
+.day-detail-modal .modal-content {
+  background:var(--bg-card); border-radius:var(--radius-lg); padding:24px;
+  max-width:550px; width:90%; max-height:80vh; overflow-y:auto;
+  border:1px solid var(--border-subtle);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="plan-container">
+  {% if athlete_plan and plan %}
+  <!-- 计划信息 -->
+  <div class="plan-header-info">
+    <div style="font-size:1.1rem;font-weight:700;color:var(--brand-green);margin-right:auto;">
+      📋 {{ plan.title }}
+    </div>
+    <div class="info-item">🏷 <strong>{{ plan.sport_type or '通用' }}</strong></div>
+    <div class="info-item">📅 <strong>{{ plan.duration_weeks }}周</strong></div>
+    <div class="info-item">📝 <strong>{{ plan.total_days }}个训练日</strong></div>
+  </div>
+
+  <!-- 进度条 -->
+  <div class="progress-bar-wrap">
+    <div class="progress-label">
+      <span style="font-weight:600;color:var(--text-primary);">📊 完成进度</span>
+      <span style="font-weight:700;color:var(--brand-green);font-size:1.1rem;">{{ athlete_plan.progress_pct }}%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill" style="width:{{ athlete_plan.progress_pct }}%;"></div>
+    </div>
+    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">
+      已完成 {{ completed_ids|length }} / {{ plan.total_days }} 天
+    </div>
+  </div>
+
+  <!-- 今日训练 -->
+  {% if today_days %}
+  <div class="today-highlight">
+    <span class="today-label">📌 今日训练</span>
+    {% for d in today_days %}
+    {% set is_done = d.id in completed_ids %}
+    <div class="day-row {% if is_done %}completed{% endif %}" onclick="showDayDetail({{ d.to_dict()|tojson }}, {{ is_done|tojson }})">
+      <div class="day-badge">
+        <span class="day-num">{{ d.day_number }}</span>
+        <span class="day-name">{{ ['','周一','周二','周三','周四','周五','周六','周日'][d.day_number] }}</span>
+      </div>
+      <div class="day-content">
+        <div class="focus">{{ d.focus_area or '训练日' }}</div>
+        {% if d.main_workout %}<div class="detail"><strong>主训练：</strong>{{ d.main_workout[:80] }}{% if d.main_workout|length > 80 %}...{% endif %}</div>{% endif %}
+      </div>
+      <div class="day-meta">
+        <div class="duration">{{ d.duration_min }}分钟</div>
+        <button class="check-btn {% if is_done %}checked{% endif %}" onclick="event.stopPropagation();toggleDay({{ d.id }})">
+          {{ '✅ 已完成' if is_done else '✓ 标记完成' }}
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- 按周分组 -->
+  {% for week_num in range(1, plan.duration_weeks + 1) %}
+  <div class="week-block">
+    <div class="week-title">📅 第 {{ week_num }} 周</div>
+    {% set wdays = days_by_week.get(week_num, []) %}
+    {% for d in wdays %}
+    {% set is_done = d.id in completed_ids %}
+    <div class="day-row {% if is_done %}completed{% endif %}" onclick="showDayDetail({{ d.to_dict()|tojson }}, {{ is_done|tojson }})">
+      <div class="day-badge">
+        <span class="day-num">{{ d.day_number }}</span>
+        <span class="day-name">{{ ['','周一','周二','周三','周四','周五','周六','周日'][d.day_number] }}</span>
+      </div>
+      <div class="day-content">
+        <div class="focus">{{ d.focus_area or '训练日' }}</div>
+        {% if d.main_workout %}<div class="detail"><strong>主训练：</strong>{{ d.main_workout[:80] }}{% if d.main_workout|length > 80 %}...{% endif %}</div>{% endif %}
+      </div>
+      <div class="day-meta">
+        <div class="duration">{{ d.duration_min or '-' }}分钟</div>
+        <button class="check-btn {% if is_done %}checked{% endif %}" onclick="event.stopPropagation();toggleDay({{ d.id }})">
+          {{ '✅ 已完成' if is_done else '✓ 标记' }}
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  {% else %}
+  <!-- 无计划状态 -->
+  <div class="empty-plan">
+    <div class="empty-icon">📋</div>
+    <h3 style="color:var(--text-primary);">暂无训练计划</h3>
+    <p style="color:var(--text-muted);margin-top:8px;">
+      教练尚未为你分配训练计划。请联系教练获取训练安排。
+    </p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- 训练日详情弹窗 -->
+<div class="day-detail-modal" id="dayDetailModal" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;color:var(--brand-green);" id="detailTitle">训练详情</h3>
+      <button onclick="document.getElementById('dayDetailModal').style.display='none'" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;">&times;</button>
+    </div>
+    <div id="detailBody"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 标记完成/取消
+async function toggleDay(dayId) {
+  try {
+    const res = await fetch('/api/athlete/me/plan/progress', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ day_id: dayId, action: 'toggle' }),
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast('状态已更新！', 'success');
+      location.reload();
+    } else {
+      showToast(result.error || '操作失败', 'error');
+    }
+  } catch(e) {
+    showToast('网络错误', 'error');
+  }
+}
+
+// 显示训练日详情
+function showDayDetail(day, isDone) {
+  const modal = document.getElementById('dayDetailModal');
+  const title = document.getElementById('detailTitle');
+  const body = document.getElementById('detailBody');
+
+  const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  title.textContent = '第' + day.week_number + '周 · ' + dayNames[day.day_number] + ' · ' + (day.focus_area || '训练日');
+
+  body.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <span style="background:var(--bg-surface);padding:4px 12px;border-radius:12px;font-size:0.8rem;color:var(--text-secondary);">
+          ⏱ ${day.duration_min || '-'} 分钟
+        </span>
+        <span style="background:var(--bg-surface);padding:4px 12px;border-radius:12px;font-size:0.8rem;color:var(--text-secondary);">
+          ${isDone ? '✅ 已完成' : '⭕ 未完成'}
+        </span>
+      </div>
+      <div class="card">
+        <h4 style="color:var(--brand-green);margin-bottom:8px;">🏃 热身</h4>
+        <p style="color:var(--text-secondary);font-size:0.9rem;white-space:pre-wrap;">${day.warmup || '无'}</p>
+      </div>
+      <div class="card" style="border-left:3px solid var(--brand-green);">
+        <h4 style="color:var(--brand-green);margin-bottom:8px;">💪 主训练</h4>
+        <p style="color:var(--text-primary);font-size:0.9rem;white-space:pre-wrap;">${day.main_workout || '无'}</p>
+      </div>
+      <div class="card">
+        <h4 style="color:var(--brand-green);margin-bottom:8px;">🧘 放松</h4>
+        <p style="color:var(--text-secondary);font-size:0.9rem;white-space:pre-wrap;">${day.cool_down || '无'}</p>
+      </div>
+      ${day.notes ? '<div class="card"><h4 style="color:var(--brand-green);margin-bottom:8px;">📝 备注</h4><p style="color:var(--text-secondary);font-size:0.9rem;">' + day.notes + '</p></div>' : ''}
+    </div>
+  `;
+  modal.style.display = 'flex';
+}
+</script>
+{% endblock %}

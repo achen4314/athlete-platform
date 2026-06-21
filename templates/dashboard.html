@@ -32,32 +32,164 @@
   {% endif %}
 </div>
 
-<!-- 关键指标 -->
-<div class="metric-grid">
+<!-- 关键指标 — 4 列布局 -->
+<div class="metric-grid-4col">
   <div class="metric-card animate-fade-up stagger-1">
-    <div class="metric-value" id="metricVo2" data-value="{{ latest_metric.vo2_max if latest_metric and latest_metric.vo2_max else '' }}">{% if latest_metric and latest_metric.vo2_max %}{{ latest_metric.vo2_max }}{% else %}--{% endif %}</div>
+    <div class="metric-value" id="metricVo2">{{ latest_metric.vo2_max if latest_metric and latest_metric.vo2_max else '--' }}</div>
     <div class="metric-label">VO₂max</div>
     <div class="metric-unit">mL/kg/min</div>
   </div>
   <div class="metric-card animate-fade-up stagger-2">
-    <div class="metric-value" id="metricBodyFat" data-value="{{ latest_metric.body_fat_pct if latest_metric and latest_metric.body_fat_pct else '' }}">{% if latest_metric and latest_metric.body_fat_pct %}{{ latest_metric.body_fat_pct }}{% else %}--{% endif %}</div>
+    <div class="metric-value" id="metricBodyFat">{{ latest_metric.body_fat_pct if latest_metric and latest_metric.body_fat_pct else '--' }}</div>
     <div class="metric-label">体脂率</div>
     <div class="metric-unit">%</div>
   </div>
   <div class="metric-card animate-fade-up stagger-3">
-    <div class="metric-value" id="metricRHR" data-value="{{ latest_metric.resting_hr if latest_metric and latest_metric.resting_hr else '' }}">{% if latest_metric and latest_metric.resting_hr %}{{ latest_metric.resting_hr }}{% else %}--{% endif %}</div>
+    <div class="metric-value" id="metricRHR">{{ latest_metric.resting_hr if latest_metric and latest_metric.resting_hr else '--' }}</div>
     <div class="metric-label">静息心率</div>
     <div class="metric-unit">bpm</div>
   </div>
   <div class="metric-card animate-fade-up stagger-4">
-    <div class="metric-value" id="metricWeight" data-value="{{ latest_metric.weight_kg if latest_metric and latest_metric.weight_kg else '' }}">{% if latest_metric and latest_metric.weight_kg %}{{ latest_metric.weight_kg }}{% else %}--{% endif %}</div>
+    <div class="metric-value" id="metricWeight">{{ latest_metric.weight_kg if latest_metric and latest_metric.weight_kg else '--' }}</div>
     <div class="metric-label">体重</div>
     <div class="metric-unit">kg</div>
   </div>
 </div>
 
-<!-- 双栏布局 -->
+<!-- 本周训练负荷柱状图 -->
+<div class="card card-accent-green animate-fade-up" style="margin-bottom:20px;">
+  <div class="card-header">
+    <span class="card-title">📊 本周训练负荷</span>
+    <span class="badge badge-green">分钟</span>
+  </div>
+  {% if weekly_training %}
+  <div class="training-load-bar">
+    {% for day in weekly_training %}
+    <div class="bar-col{% if day.is_today %} today{% endif %}" title="{{ day.date }}: {{ day.duration }} 分钟">
+      <div class="bar-value">{{ day.duration }}'</div>
+      <div class="bar-fill" style="height: {{ day.height_pct }}%;{% if day.duration == 0 %}opacity:0.25;{% endif %}"></div>
+      <div class="bar-label">{{ day.day }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📊</div>
+    <p>本周暂无训练记录</p>
+    <a href="{{ url_for('data_entry') }}#tab-training" class="btn btn-primary btn-sm" style="margin-top:10px;">录入训练</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ACWR 训练负荷预警卡片 -->
+{% if athlete %}
+<div class="card card-accent-gold animate-fade-up" style="margin-bottom:20px;">
+  <div class="card-header">
+    <span class="card-title">⚠️ 训练负荷预警 (ACWR)</span>
+    <span style="font-size:0.7rem;color:var(--text-muted);">急性:慢性负荷比</span>
+  </div>
+  <div id="acwrWidget" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:200px;">
+      <div id="acwrValue" style="font-size:3rem;font-weight:800;color:var(--text-muted);line-height:1;">--</div>
+      <div id="acwrLabel" style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;">加载中...</div>
+    </div>
+    <div style="flex:2;min-width:250px;">
+      <div style="display:flex;gap:24px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:0.65rem;color:var(--text-muted);">急性负荷 (7天)</div>
+          <div id="acwrAcute" style="font-size:1.2rem;font-weight:700;color:var(--text-primary);">--</div>
+          <div style="font-size:0.6rem;color:var(--text-muted);">AU/天 (sRPE)</div>
+        </div>
+        <div>
+          <div style="font-size:0.65rem;color:var(--text-muted);">慢性负荷 (28天)</div>
+          <div id="acwrChronic" style="font-size:1.2rem;font-weight:700;color:var(--text-primary);">--</div>
+          <div style="font-size:0.6rem;color:var(--text-muted);">AU/天 (sRPE)</div>
+        </div>
+      </div>
+      <!-- 可视化区间条 -->
+      <div style="position:relative;height:8px;background:var(--bg-deep);border-radius:4px;margin-top:8px;overflow:hidden;">
+        <div style="position:absolute;left:0;width:24%;height:100%;background:rgba(33,150,243,.3);" title="负荷偏低 &lt;0.8"></div>
+        <div style="position:absolute;left:24%;width:40%;height:100%;background:rgba(76,175,80,.3);" title="安全区 0.8-1.3"></div>
+        <div style="position:absolute;left:64%;width:16%;height:100%;background:rgba(255,152,0,.3);" title="注意 1.3-1.5"></div>
+        <div style="position:absolute;left:80%;width:20%;height:100%;background:rgba(229,57,53,.3);" title="高风险 &gt;1.5"></div>
+        <div id="acwrMarker" style="position:absolute;top:-3px;width:4px;height:14px;background:var(--text-primary);border-radius:2px;transform:translateX(-50%);display:none;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:0.55rem;color:var(--text-muted);margin-top:2px;">
+        <span style="color:#2196f3;">0.8</span>
+        <span style="color:#4caf50;">1.3</span>
+        <span style="color:#ff9800;">1.5</span>
+        <span style="color:#e53935;">1.8</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- 体脂/体重趋势 + 测试对比 -->
 <div class="dashboard-grid">
+  <!-- 体脂/体重趋势迷你折线 -->
+  <div class="card card-accent-gold animate-fade-up">
+    <div class="card-header">
+      <span class="card-title">📈 身体趋势</span>
+      <span class="badge badge-gold">近期变化</span>
+    </div>
+    {% if body_trend %}
+    <div class="trend-mini-card">
+      {% for trend in body_trend %}
+      <div class="trend-mini-row">
+        <span class="trend-label">{{ trend.label }}</span>
+        <div class="trend-spark">
+          {% for h in trend.dot_heights %}
+          <div class="spark-dot" style="height:{{ h }}%;min-height:3px;"></div>
+          {% endfor %}
+        </div>
+        <span class="trend-value">{{ trend.current }} {{ trend.unit }}</span>
+        <span class="trend-arrow {% if trend.direction == 'up' %}trend-up{% elif trend.direction == 'down' %}trend-down{% else %}trend-flat{% endif %}">
+          {% if trend.direction == 'up' %}↑ +{{ trend.delta }}{% elif trend.direction == 'down' %}↓ {{ trend.delta }}{% else %}→ {{ trend.delta }}{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📉</div>
+      <p>需要至少2次身体指标记录<br>才能显示趋势</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- 最近测试对比 -->
+  <div class="card card-accent-teal animate-fade-up">
+    <div class="card-header">
+      <span class="card-title">🔄 测试对比</span>
+      <span class="badge badge-teal">上次 → 本次</span>
+    </div>
+    {% if test_comparisons %}
+    <div class="test-compare-list">
+      {% for tc in test_comparisons %}
+      <div class="test-compare-item">
+        <span class="tc-name">{{ tc.name }}</span>
+        <span class="tc-values">
+          {{ tc.prev_value }} → {{ tc.latest_value }} {{ tc.unit }}
+          <span class="tc-date">{{ tc.prev_date }} → {{ tc.latest_date }}</span>
+        </span>
+        <span class="tc-delta {% if tc.direction == 'positive' %}positive{% elif tc.direction == 'negative' %}negative{% else %}neutral{% endif %}">
+          {% if tc.direction == 'positive' %}↑{% elif tc.direction == 'negative' %}↓{% else %}→{% endif %} {{ tc.diff_str }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">🔄</div>
+      <p>需要每项测试至少有2次记录<br>才能进行对比分析</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- 双栏：最近测试摘要 + 最近训练 -->
+<div class="dashboard-grid" style="margin-top:20px;">
   <!-- 最近测试摘要 -->
   <div class="card card-accent-green animate-fade-up">
     <div class="card-header">
@@ -145,6 +277,45 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% if athlete %}
+<script>
+// ACWR 训练负荷预警
+(function() {
+  fetch('/api/athlete/{{ athlete.id }}/acwr')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var v = document.getElementById('acwrValue');
+      var l = document.getElementById('acwrLabel');
+      var a = document.getElementById('acwrAcute');
+      var c = document.getElementById('acwrChronic');
+      var m = document.getElementById('acwrMarker');
+
+      if (d.acwr !== null && d.acwr !== undefined) {
+        v.textContent = d.acwr.toFixed(2);
+        v.style.color = d.zone_color || '#606878';
+      } else {
+        v.textContent = '--';
+      }
+      l.textContent = d.zone_label || '无数据';
+      l.style.color = d.zone_color || '#606878';
+      a.textContent = d.acute_load_7d || '0';
+      c.textContent = d.chronic_load_28d || '0';
+
+      if (m && d.acwr !== null && d.acwr !== undefined) {
+        // 将 ACWR 映射到区间条上 (0-2.0 范围)
+        var pct = Math.min(100, Math.max(0, (d.acwr / 2.0) * 100));
+        m.style.left = pct + '%';
+        m.style.display = 'block';
+        m.style.background = d.zone_color || '#fff';
+      }
+    })
+    .catch(function() {
+      var l = document.getElementById('acwrLabel');
+      if (l) l.textContent = '加载失败';
+    });
+})();
+</script>
+{% endif %}
 {% if athlete and recent_tests %}
 <script>
 (function() {
