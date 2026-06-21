@@ -1438,6 +1438,7 @@ def _ensure_db():
     try:
         db.create_all()
         FitnessTest.seed_defaults()
+        # 创建管理员
         admin_user = app.config.get("ADMIN_USERNAME", "admin")
         admin_pass = app.config.get("ADMIN_PASSWORD", "admin123")
         if not User.query.filter_by(username=admin_user).first():
@@ -1448,9 +1449,28 @@ def _ensure_db():
                 display_name="系统管理员",
             )
             db.session.add(admin)
+        # 创建演示用户（如果不存在）
+        demo_users = [
+            ("coach1", generate_password_hash("coach123"), "coach", "王教练"),
+            ("athlete1", generate_password_hash("athlete123"), "athlete", "张三"),
+            ("athlete2", generate_password_hash("athlete123"), "athlete", "李四"),
+        ]
+        for uname, phash, role, dname in demo_users:
+            if not User.query.filter_by(username=uname).first():
+                db.session.add(User(username=uname, password_hash=phash, role=role, display_name=dname))
+        db.session.commit()
+        # 如果运动员档案不存在，创建默认档案
+        if not Athlete.query.first():
+            a1 = Athlete(user_id=User.query.filter_by(username="athlete1").first().id,
+                         name="张三", gender="男", sport_type="篮球", position="前锋",
+                         height_cm=198.0, weight_kg=95.0, level="省级", training_years=8)
+            a2 = Athlete(user_id=User.query.filter_by(username="athlete2").first().id,
+                         name="李四", gender="男", sport_type="篮球", position="后卫",
+                         height_cm=185.0, weight_kg=78.0, level="省级", training_years=6)
+            db.session.add_all([a1, a2])
             db.session.commit()
         _db_initialized = True
-        logger.info("数据库初始化完成")
+        logger.info("数据库初始化完成（含演示用户）")
     except Exception as e:
         logger.warning("数据库初始化失败（将重试）: %s", e)
 
