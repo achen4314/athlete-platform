@@ -3,16 +3,23 @@
 """
 import os
 
+
 class Config:
-    """应用配置"""
+    """应用配置（自动区分开发/生产环境）"""
+
+    # 密钥 — 生产环境必须通过环境变量设置
     SECRET_KEY = os.environ.get("SECRET_KEY", "athlete-platform-dev-secret-key")
 
-    # SQLite 本地数据库
+    # 数据库 — 自动适配 SQLite（本地）或 PostgreSQL（线上）
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-    DATABASE = os.path.join(BASE_DIR, "athlete_data.db")
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", f"sqlite:///{DATABASE}"
-    )
+    _db_url = os.environ.get("DATABASE_URL", "")
+    if _db_url:
+        # Railway/Render 提供的 PostgreSQL URL 以 postgres:// 开头
+        if _db_url.startswith("postgres://"):
+            _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+        SQLALCHEMY_DATABASE_URI = _db_url
+    else:
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(BASE_DIR, 'athlete_data.db')}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # DeepSeek API
@@ -22,33 +29,36 @@ class Config:
     )
     DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 
-    # 会话
-    SESSION_COOKIE_SECURE = False
-    SESSION_COOKIE_HTTPONLY = True
-    PERMANENT_SESSION_LIFETIME = 86400 * 7  # 7天
+    # 环境判断
+    IS_PRODUCTION = os.environ.get("RAILWAY_ENVIRONMENT") is not None or \
+                    os.environ.get("RENDER") is not None or \
+                    os.environ.get("FLY_APP_NAME") is not None
 
-    DEBUG = True
+    # 会话 — 生产环境启用 HTTPS
+    SESSION_COOKIE_SECURE = IS_PRODUCTION
+    SESSION_COOKIE_HTTPONLY = True
+    PERMANENT_SESSION_LIFETIME = 86400 * 7
+
+    # 管理员 — 生产环境从环境变量读取密码
+    ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
+    ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+
+    DEBUG = not IS_PRODUCTION
 
 
 class BrandConfig:
     """平台品牌/视觉配置"""
-    # 品牌色
     PRIMARY_GREEN = "#a0c040"
     DARK_TEAL = "#204040"
     GOLD = "#c0c060"
     LIGHT_GRAY = "#e0e0e0"
     CARD_BG = "#f2f4f0"
-
-    # 深色主题
     DARK_BG = "#1a1a2e"
     DARK_SURFACE = "#16213e"
     DARK_CARD = "#0f3460"
-
-    # 平台名称
     BRAND_NAME = "运动员数据分析平台"
     BRAND_SHORT = "运动员平台"
 
-    # 角色定义
     ROLES = ["athlete", "coach", "doctor", "analyst", "admin"]
     ROLE_LABELS = {
         "athlete": "运动员",

@@ -85,17 +85,19 @@ def init_db():
     """初始化数据库：建表 + 预填充测试项目"""
     db.create_all()
     FitnessTest.seed_defaults()
-    # 如果没有管理员用户，创建默认管理员
-    if not User.query.filter_by(username="admin").first():
+    # 创建管理员（密码优先从环境变量读取）
+    admin_user = app.config.get("ADMIN_USERNAME", "admin")
+    admin_pass = app.config.get("ADMIN_PASSWORD", "admin123")
+    if not User.query.filter_by(username=admin_user).first():
         admin = User(
-            username="admin",
-            password_hash=generate_password_hash("admin123"),
+            username=admin_user,
+            password_hash=generate_password_hash(admin_pass),
             role="admin",
             display_name="系统管理员",
         )
         db.session.add(admin)
         db.session.commit()
-        logger.info("已创建默认管理员账户 (admin / admin123)")
+        logger.info("已创建管理员账户")
     logger.info("数据库初始化完成")
 
 
@@ -107,6 +109,12 @@ def index():
     if "user_id" in session:
         return redirect(url_for("dashboard"))
     return redirect(url_for("login"))
+
+
+@app.route("/health")
+def health():
+    """健康检查端点（供部署平台使用）"""
+    return jsonify({"status": "ok", "db": "connected"}), 200
 
 
 @app.route("/login", methods=["GET", "POST"])
