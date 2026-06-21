@@ -1,0 +1,1082 @@
+{% extends "base.html" %}
+{% block title %}批量导入 — 运动员平台{% endblock %}
+{% block page_title %}📥 CSV 批量导入{% endblock %}
+
+{% block content %}
+<div class="csv-import-page animate-fade-up">
+
+  <!-- ===== 步骤指示器 ===== -->
+  <div class="csv-steps" id="csvSteps">
+    <div class="csv-step active" data-step="1">
+      <span class="step-num">1</span>
+      <span class="step-label">上传文件</span>
+    </div>
+    <div class="csv-step-connector"></div>
+    <div class="csv-step" data-step="2">
+      <span class="step-num">2</span>
+      <span class="step-label">列映射</span>
+    </div>
+    <div class="csv-step-connector"></div>
+    <div class="csv-step" data-step="3">
+      <span class="step-num">3</span>
+      <span class="step-label">确认导入</span>
+    </div>
+  </div>
+
+  <!-- ===== 步骤 1: 上传文件 ===== -->
+  <div class="csv-step-panel active" id="panel-step1">
+    <div class="card csv-upload-card">
+      <div class="card-header">
+        <span class="card-title">📂 选择 CSV 文件</span>
+        <a href="{{ url_for('api_import_template') }}" class="btn btn-outline btn-sm">
+          📥 下载模板
+        </a>
+      </div>
+
+      <!-- 拖拽上传区域 -->
+      <div class="csv-dropzone" id="csvDropzone">
+        <div class="dropzone-content">
+          <div class="dropzone-icon">📁</div>
+          <div class="dropzone-title">拖拽 CSV 文件到此处</div>
+          <div class="dropzone-subtitle">或点击下方按钮选择文件</div>
+          <div class="dropzone-formats">支持 .csv 格式，最大 10MB</div>
+        </div>
+        <input type="file" id="csvFileInput" accept=".csv" style="display:none;">
+        <div class="dropzone-file-info" id="dropzoneFileInfo" style="display:none;">
+          <div class="file-info-icon">📄</div>
+          <div class="file-info-details">
+            <div class="file-info-name" id="fileName"></div>
+            <div class="file-info-size" id="fileSize"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="btnRemoveFile" title="移除文件">✕</button>
+        </div>
+      </div>
+
+      <div class="csv-upload-actions">
+        <button class="btn btn-outline" onclick="document.getElementById('csvFileInput').click()">
+          📂 选择文件
+        </button>
+        <button class="btn btn-primary" id="btnUploadPreview" disabled>
+          🔍 上传并预览
+        </button>
+      </div>
+
+      <!-- 上传进度 -->
+      <div class="csv-progress-bar" id="uploadProgress" style="display:none;">
+        <div class="progress-fill" id="uploadProgressFill"></div>
+      </div>
+
+      <!-- 格式说明卡片 -->
+      <div class="csv-format-help">
+        <div class="help-title">📋 CSV 格式说明</div>
+        <div class="help-content">
+          <p>CSV 文件需要包含以下列（列顺序不限，列名尽量匹配）：</p>
+          <table class="csv-help-table">
+            <thead>
+              <tr><th>列名（建议）</th><th>说明</th><th>示例</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>athlete_name</code></td><td>运动员姓名</td><td>张三</td></tr>
+              <tr><td><code>test_name</code></td><td>测试项目名称</td><td>30米冲刺</td></tr>
+              <tr><td><code>test_date</code></td><td>测试日期</td><td>2024-06-15</td></tr>
+              <tr><td><code>raw_value</code></td><td>测试数值</td><td>4.32</td></tr>
+              <tr><td><code>unit</code></td><td>单位（可选）</td><td>秒</td></tr>
+              <tr><td><code>notes</code></td><td>备注（可选）</td><td>雨天测试</td></tr>
+            </tbody>
+          </table>
+          <p class="help-note">💡 不确定格式？点击上方<b>「下载模板」</b>获取标准模板文件。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 步骤 2: 列映射 + 预览 ===== -->
+  <div class="csv-step-panel" id="panel-step2">
+    <div class="card csv-preview-card">
+      <div class="card-header">
+        <span class="card-title">📊 数据预览与列映射</span>
+        <span class="csv-row-count" id="previewRowCount"></span>
+      </div>
+
+      <!-- 列映射区域 -->
+      <div class="csv-mapping-section">
+        <div class="mapping-title">🔗 列映射：将 CSV 列对应到系统字段</div>
+        <div class="mapping-grid" id="mappingGrid">
+          <!-- JS 动态填充 -->
+        </div>
+      </div>
+
+      <!-- 预览表格 -->
+      <div class="csv-preview-table-wrapper">
+        <table class="csv-preview-table" id="previewTable">
+          <thead id="previewTableHead"></thead>
+          <tbody id="previewTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- 错误行提示 -->
+      <div class="csv-errors" id="csvErrors" style="display:none;"></div>
+
+      <div class="csv-preview-actions">
+        <button class="btn btn-outline" id="btnBackToUpload">← 返回重选文件</button>
+        <button class="btn btn-primary" id="btnGoToConfirm">
+          ✅ 确认映射，进入导入
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 步骤 3: 确认导入 ===== -->
+  <div class="csv-step-panel" id="panel-step3">
+    <div class="card csv-confirm-card">
+      <div class="card-header">
+        <span class="card-title">🚀 确认导入</span>
+        <span class="csv-row-count" id="confirmRowCount"></span>
+      </div>
+
+      <!-- 导入选项 -->
+      <div class="csv-import-options">
+        <label class="csv-checkbox-label">
+          <input type="checkbox" id="chkSkipDuplicates" checked>
+          <span class="checkbox-text">
+            <strong>跳过重复记录</strong>
+            <small>同运动员、同测试项目、同日期的记录将跳过</small>
+          </span>
+        </label>
+      </div>
+
+      <!-- 导入摘要 -->
+      <div class="csv-import-summary" id="importSummary">
+        <!-- JS 动态填充 -->
+      </div>
+
+      <!-- 导入进度 -->
+      <div class="csv-progress-bar" id="importProgress" style="display:none;">
+        <div class="progress-fill" id="importProgressFill"></div>
+        <div class="progress-text" id="importProgressText"></div>
+      </div>
+
+      <!-- 导入结果 -->
+      <div class="csv-import-result" id="importResult" style="display:none;"></div>
+
+      <div class="csv-preview-actions">
+        <button class="btn btn-outline" id="btnBackToMapping">← 返回调整映射</button>
+        <button class="btn btn-primary" id="btnStartImport">
+          🚀 开始导入
+        </button>
+        <button class="btn btn-primary" id="btnDone" style="display:none;" onclick="window.location.reload()">
+          ✅ 完成
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ========== 全局状态 ========== */
+var csvState = {
+  file: null,
+  previewData: null,       // 服务器返回的预览数据
+  mapping: {},             // CSV列索引 → 系统字段
+  totalRows: 0,
+  validRows: 0,
+};
+
+/* ========== 系统字段定义 ========== */
+var SYSTEM_FIELDS = [
+  { key: 'athlete_name', label: '运动员姓名', required: true,  desc: '运动员档案中的姓名' },
+  { key: 'test_name',    label: '测试项目',   required: true,  desc: '如"30米冲刺"、"卧推1RM"等' },
+  { key: 'test_date',    label: '测试日期',   required: true,  desc: '格式: YYYY-MM-DD' },
+  { key: 'raw_value',    label: '测试值',     required: true,  desc: '数值，如 4.32' },
+  { key: 'unit',         label: '单位',       required: false, desc: '如 秒、厘米、公斤' },
+  { key: 'notes',        label: '备注',       required: false, desc: '可选备注信息' },
+];
+
+/* ========== 步骤切换 ========== */
+function goToStep(stepNum) {
+  document.querySelectorAll('.csv-step').forEach(function(el) {
+    var s = parseInt(el.getAttribute('data-step'));
+    el.classList.remove('active', 'done');
+    if (s < stepNum) el.classList.add('done');
+    if (s === stepNum) el.classList.add('active');
+  });
+  document.querySelectorAll('.csv-step-panel').forEach(function(el) {
+    el.classList.remove('active');
+  });
+  document.getElementById('panel-step' + stepNum).classList.add('active');
+}
+
+/* ========== 步骤 1: 文件上传 ========== */
+var dropzone = document.getElementById('csvDropzone');
+var fileInput = document.getElementById('csvFileInput');
+var btnUpload = document.getElementById('btnUploadPreview');
+var fileInfo = document.getElementById('dropzoneFileInfo');
+var dropzoneContent = dropzone.querySelector('.dropzone-content');
+
+// 点击选择文件
+dropzone.addEventListener('click', function() {
+  fileInput.click();
+});
+
+fileInput.addEventListener('change', function() {
+  if (this.files && this.files[0]) {
+    handleFileSelected(this.files[0]);
+  }
+});
+
+// 拖拽事件
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(evt) {
+  dropzone.addEventListener(evt, function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+});
+
+['dragenter', 'dragover'].forEach(function(evt) {
+  dropzone.addEventListener(evt, function() {
+    dropzone.classList.add('drag-over');
+  });
+});
+
+['dragleave', 'drop'].forEach(function(evt) {
+  dropzone.addEventListener(evt, function() {
+    dropzone.classList.remove('drag-over');
+  });
+});
+
+dropzone.addEventListener('drop', function(e) {
+  var files = e.dataTransfer.files;
+  if (files && files[0]) {
+    handleFileSelected(files[0]);
+  }
+});
+
+function handleFileSelected(file) {
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    showToast('❌ 请选择 .csv 格式的文件', 'error');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('❌ 文件大小不能超过 10MB', 'error');
+    return;
+  }
+  csvState.file = file;
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileSize').textContent = formatFileSize(file.size);
+  dropzoneContent.style.display = 'none';
+  fileInfo.style.display = 'flex';
+  btnUpload.disabled = false;
+  btnUpload.classList.add('ready');
+}
+
+document.getElementById('btnRemoveFile').addEventListener('click', function(e) {
+  e.stopPropagation();
+  csvState.file = null;
+  fileInput.value = '';
+  dropzoneContent.style.display = '';
+  fileInfo.style.display = 'none';
+  btnUpload.disabled = true;
+  btnUpload.classList.remove('ready');
+});
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+/* ========== 上传并预览 ========== */
+btnUpload.addEventListener('click', function() {
+  if (!csvState.file) return;
+
+  btnUpload.disabled = true;
+  btnUpload.textContent = '⏳ 上传中...';
+
+  var formData = new FormData();
+  formData.append('file', csvState.file);
+
+  var progress = document.getElementById('uploadProgress');
+  var progressFill = document.getElementById('uploadProgressFill');
+  progress.style.display = 'block';
+  progressFill.style.width = '30%';
+
+  fetch('{{ url_for("api_import_csv_preview") }}', {
+    method: 'POST',
+    body: formData,
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    progressFill.style.width = '100%';
+    setTimeout(function() { progress.style.display = 'none'; }, 600);
+
+    if (data.error) {
+      showToast('❌ ' + data.error, 'error');
+      btnUpload.disabled = false;
+      btnUpload.textContent = '🔍 上传并预览';
+      return;
+    }
+
+    csvState.previewData = data;
+    csvState.totalRows = data.total_rows;
+    csvState.validRows = data.valid_rows;
+
+    buildMappingUI(data.headers, data.mapping_suggestions);
+    buildPreviewTable(data.headers, data.preview_rows);
+    showErrors(data.errors);
+
+    goToStep(2);
+    btnUpload.disabled = false;
+    btnUpload.textContent = '🔍 上传并预览';
+  })
+  .catch(function(err) {
+    progress.style.display = 'none';
+    showToast('❌ 上传失败: ' + err.message, 'error');
+    btnUpload.disabled = false;
+    btnUpload.textContent = '🔍 上传并预览';
+  });
+});
+
+/* ========== 列映射 UI ========== */
+function buildMappingUI(headers, suggestions) {
+  var grid = document.getElementById('mappingGrid');
+  grid.innerHTML = '';
+
+  SYSTEM_FIELDS.forEach(function(field) {
+    var div = document.createElement('div');
+    div.className = 'mapping-item';
+
+    var label = document.createElement('label');
+    label.className = 'mapping-label';
+    label.innerHTML = (field.required ? '<span class="required-star">*</span> ' : '') + field.label;
+    label.title = field.desc;
+
+    var select = document.createElement('select');
+    select.className = 'mapping-select';
+    select.setAttribute('data-field', field.key);
+
+    var defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = '— 不映射 —';
+    select.appendChild(defaultOption);
+
+    headers.forEach(function(header, idx) {
+      var opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = header;
+      select.appendChild(opt);
+    });
+
+    // 自动匹配建议
+    if (suggestions && suggestions[field.key] !== undefined && suggestions[field.key] !== null) {
+      select.value = suggestions[field.key];
+    }
+
+    select.addEventListener('change', function() {
+      updateMapping();
+    });
+
+    div.appendChild(label);
+    div.appendChild(select);
+    grid.appendChild(div);
+  });
+
+  updateMapping();
+}
+
+function updateMapping() {
+  csvState.mapping = {};
+  document.querySelectorAll('.mapping-select').forEach(function(sel) {
+    var field = sel.getAttribute('data-field');
+    if (sel.value !== '') {
+      csvState.mapping[field] = parseInt(sel.value);
+    }
+  });
+  updateConfirmButton();
+}
+
+function updateConfirmButton() {
+  var btn = document.getElementById('btnGoToConfirm');
+  var requiredFields = SYSTEM_FIELDS.filter(function(f) { return f.required; });
+  var allMapped = requiredFields.every(function(f) {
+    return csvState.mapping[f.key] !== undefined;
+  });
+
+  if (!allMapped) {
+    btn.disabled = true;
+    btn.title = '请先映射所有必填字段';
+  } else {
+    btn.disabled = false;
+    btn.title = '';
+  }
+}
+
+/* ========== 预览表格 ========== */
+function buildPreviewTable(headers, rows) {
+  var thead = document.getElementById('previewTableHead');
+  var tbody = document.getElementById('previewTableBody');
+  var rowCount = document.getElementById('previewRowCount');
+
+  rowCount.textContent = '共 ' + csvState.totalRows + ' 行，前 ' + rows.length + ' 行预览';
+
+  // 表头
+  thead.innerHTML = '<tr><th>#</th>' + headers.map(function(h) {
+    return '<th>' + escapeHtml(h) + '</th>';
+  }).join('') + '</tr>';
+
+  // 数据行
+  tbody.innerHTML = rows.map(function(row, i) {
+    return '<tr><td>' + (i + 1) + '</td>' + row.map(function(cell) {
+      return '<td>' + escapeHtml(String(cell)) + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+}
+
+function showErrors(errors) {
+  var container = document.getElementById('csvErrors');
+  if (!errors || errors.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'block';
+  container.innerHTML = '<div class="errors-title">⚠️ 检测到 ' + errors.length + ' 个问题：</div>' +
+    errors.map(function(e) {
+      return '<div class="error-item">' +
+        '<span class="error-line">第 ' + e.row + ' 行</span>: ' +
+        e.field + ' — ' + e.message +
+      '</div>';
+    }).join('');
+}
+
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ========== 步骤 2 → 步骤 3 ========== */
+document.getElementById('btnBackToUpload').addEventListener('click', function() {
+  goToStep(1);
+});
+
+document.getElementById('btnGoToConfirm').addEventListener('click', function() {
+  var requiredFields = SYSTEM_FIELDS.filter(function(f) { return f.required; });
+  var allMapped = requiredFields.every(function(f) {
+    return csvState.mapping[f.key] !== undefined;
+  });
+
+  if (!allMapped) {
+    showToast('❌ 请先映射所有必填字段（带 * 的字段）', 'error');
+    return;
+  }
+
+  buildConfirmSummary();
+  goToStep(3);
+});
+
+document.getElementById('btnBackToMapping').addEventListener('click', function() {
+  goToStep(2);
+});
+
+/* ========== 确认导入摘要 ========== */
+function buildConfirmSummary() {
+  var summary = document.getElementById('importSummary');
+  var mapping = csvState.mapping;
+
+  var fieldMap = {};
+  SYSTEM_FIELDS.forEach(function(f) {
+    if (mapping[f.key] !== undefined) {
+      fieldMap[f.key] = f.label;
+    }
+  });
+
+  var mappedFields = Object.keys(fieldMap).map(function(k) {
+    return '<span class="summary-tag">' + fieldMap[k] + '</span>';
+  }).join(' ');
+
+  summary.innerHTML =
+    '<div class="summary-row"><span class="summary-label">文件：</span>' + escapeHtml(csvState.file.name) + '</div>' +
+    '<div class="summary-row"><span class="summary-label">总行数：</span><strong>' + csvState.totalRows + '</strong> 行</div>' +
+    '<div class="summary-row"><span class="summary-label">有效行：</span><strong style="color:var(--success)">' + csvState.validRows + '</strong> 行</div>' +
+    '<div class="summary-row"><span class="summary-label">映射字段：</span>' + mappedFields + '</div>';
+
+  document.getElementById('confirmRowCount').textContent = '将导入 ' + csvState.validRows + ' 条记录';
+}
+
+/* ========== 执行导入 ========== */
+document.getElementById('btnStartImport').addEventListener('click', function() {
+  var btn = document.getElementById('btnStartImport');
+  btn.disabled = true;
+  btn.textContent = '⏳ 导入中...';
+
+  var importProgress = document.getElementById('importProgress');
+  var importProgressFill = document.getElementById('importProgressFill');
+  var importProgressText = document.getElementById('importProgressText');
+
+  importProgress.style.display = 'block';
+  importProgressFill.style.width = '10%';
+  importProgressText.textContent = '正在处理...';
+
+  // 模拟进度动画
+  var progressInterval = setInterval(function() {
+    var w = parseFloat(importProgressFill.style.width);
+    if (w < 85) {
+      importProgressFill.style.width = Math.min(w + Math.random() * 15, 85) + '%';
+    }
+  }, 400);
+
+  fetch('{{ url_for("api_import_csv_confirm") }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      mapping: csvState.mapping,
+      skip_duplicates: document.getElementById('chkSkipDuplicates').checked,
+    }),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    clearInterval(progressInterval);
+    importProgressFill.style.width = '100%';
+    importProgressText.textContent = '完成！';
+
+    setTimeout(function() {
+      importProgress.style.display = 'none';
+      showImportResult(data);
+      btn.style.display = 'none';
+      document.getElementById('btnDone').style.display = 'inline-flex';
+    }, 500);
+  })
+  .catch(function(err) {
+    clearInterval(progressInterval);
+    importProgress.style.display = 'none';
+    showToast('❌ 导入失败: ' + err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = '🚀 开始导入';
+  });
+});
+
+function showImportResult(data) {
+  var container = document.getElementById('importResult');
+  container.style.display = 'block';
+
+  if (data.error) {
+    container.innerHTML = '<div class="result-card result-error">❌ ' + data.error + '</div>';
+    return;
+  }
+
+  var html = '<div class="result-card result-success">✅ 导入完成！</div>';
+  html += '<div class="result-stats">';
+  html += '<div class="stat-item stat-success"><span class="stat-num">' + (data.imported || 0) + '</span><span class="stat-label">成功导入</span></div>';
+  html += '<div class="stat-item stat-skip"><span class="stat-num">' + (data.skipped || 0) + '</span><span class="stat-label">跳过重复</span></div>';
+  html += '<div class="stat-item stat-error"><span class="stat-num">' + (data.errors || 0) + '</span><span class="stat-label">出错</span></div>';
+  html += '</div>';
+
+  if (data.error_details && data.error_details.length > 0) {
+    html += '<div class="result-errors">';
+    html += '<div class="errors-title">⚠️ 错误详情：</div>';
+    data.error_details.forEach(function(e) {
+      html += '<div class="error-item"><span class="error-line">第 ' + e.row + ' 行</span>: ' + e.message + '</div>';
+    });
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+}
+</script>
+
+<style>
+/* ========== CSV 导入页面样式 ========== */
+
+/* 步骤指示器 */
+.csv-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 24px;
+  padding: 16px 24px;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.csv-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  transition: var(--transition);
+}
+
+.csv-step .step-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: var(--transition);
+}
+
+.csv-step.active {
+  color: var(--brand-green);
+}
+.csv-step.active .step-num {
+  background: var(--brand-green);
+  color: #1a1a2e;
+}
+.csv-step.done {
+  color: var(--success);
+}
+.csv-step.done .step-num {
+  background: var(--success);
+  color: #fff;
+}
+
+.csv-step-connector {
+  width: 60px;
+  height: 2px;
+  background: var(--border-light);
+  margin: 0 8px;
+  transition: var(--transition);
+}
+.csv-step.done + .csv-step-connector {
+  background: var(--success);
+}
+
+/* 步骤面板 */
+.csv-step-panel {
+  display: none;
+}
+.csv-step-panel.active {
+  display: block;
+}
+
+/* 上传卡片 */
+.csv-upload-card {
+  max-width: 800px;
+}
+
+/* 拖拽区域 */
+.csv-dropzone {
+  border: 2px dashed var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.csv-dropzone:hover,
+.csv-dropzone.drag-over {
+  border-color: var(--brand-green);
+  background: rgba(160,192,64,.05);
+}
+
+.dropzone-icon {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+}
+.dropzone-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.dropzone-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.dropzone-formats {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* 已选文件信息 */
+.dropzone-file-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(160,192,64,.08);
+  border-radius: var(--radius-sm);
+  width: 100%;
+}
+.file-info-icon {
+  font-size: 1.8rem;
+}
+.file-info-details {
+  flex: 1;
+  text-align: left;
+}
+.file-info-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+.file-info-size {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* 上传按钮 */
+.csv-upload-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+/* 进度条 */
+.csv-progress-bar {
+  margin-top: 16px;
+  height: 6px;
+  background: var(--border-light);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-green), var(--brand-gold));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+.progress-text {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* 格式说明 */
+.csv-format-help {
+  margin-top: 24px;
+  padding: 16px;
+  background: rgba(32,64,64,.3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+.help-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+.help-content p {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+.help-note {
+  margin-top: 10px;
+  color: var(--brand-gold) !important;
+}
+.csv-help-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+}
+.csv-help-table th {
+  text-align: left;
+  padding: 6px 10px;
+  background: rgba(160,192,64,.1);
+  color: var(--brand-green);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.csv-help-table td {
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.csv-help-table code {
+  background: rgba(160,192,64,.15);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  color: var(--brand-green);
+}
+
+/* 预览卡片 */
+.csv-preview-card,
+.csv-confirm-card {
+  max-width: 100%;
+}
+
+.csv-row-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* 列映射 */
+.csv-mapping-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(32,64,64,.2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+.mapping-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+.mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.mapping-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mapping-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.mapping-label .required-star {
+  color: var(--danger);
+}
+.mapping-select {
+  padding: 8px 10px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: inherit;
+}
+.mapping-select:focus {
+  outline: none;
+  border-color: var(--brand-green);
+  box-shadow: 0 0 0 2px rgba(160,192,64,.15);
+}
+
+/* 预览表格 */
+.csv-preview-table-wrapper {
+  overflow-x: auto;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.csv-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.csv-preview-table th {
+  background: var(--bg-surface);
+  color: var(--brand-green);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 2px solid var(--border-light);
+}
+.csv-preview-table td {
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.csv-preview-table tbody tr:hover {
+  background: rgba(160,192,64,.04);
+}
+
+/* 错误信息 */
+.csv-errors {
+  background: rgba(229,57,53,.1);
+  border: 1px solid rgba(229,57,53,.3);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+.errors-title {
+  font-weight: 600;
+  color: var(--danger);
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+.error-item {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  padding: 3px 0;
+}
+.error-line {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* 操作按钮 */
+.csv-preview-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* 确认页面 */
+.csv-import-options {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(32,64,64,.2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+.csv-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.csv-checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand-green);
+  margin-top: 2px;
+  cursor: pointer;
+}
+.checkbox-text strong {
+  display: block;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.checkbox-text small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* 导入摘要 */
+.csv-import-summary {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+.summary-row {
+  padding: 6px 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.summary-label {
+  color: var(--text-muted);
+  margin-right: 8px;
+}
+.summary-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  background: rgba(160,192,64,.15);
+  color: var(--brand-green);
+  border-radius: 4px;
+  font-size: 0.78rem;
+  margin-right: 4px;
+}
+
+/* 导入结果 */
+.csv-import-result {
+  margin-bottom: 20px;
+}
+.result-card {
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+.result-success {
+  background: rgba(76,175,80,.15);
+  border: 1px solid rgba(76,175,80,.3);
+  color: var(--success);
+}
+.result-error {
+  background: rgba(229,57,53,.15);
+  border: 1px solid rgba(229,57,53,.3);
+  color: var(--danger);
+}
+.result-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.stat-item {
+  flex: 1;
+  text-align: center;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+}
+.stat-success { background: rgba(76,175,80,.1); border: 1px solid rgba(76,175,80,.2); }
+.stat-skip    { background: rgba(255,152,0,.1); border: 1px solid rgba(255,152,0,.2); }
+.stat-error   { background: rgba(229,57,53,.1); border: 1px solid rgba(229,57,53,.2); }
+.stat-num {
+  display: block;
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.stat-success .stat-num { color: var(--success); }
+.stat-skip .stat-num    { color: var(--warning); }
+.stat-error .stat-num   { color: var(--danger); }
+.stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.result-errors {
+  background: rgba(229,57,53,.08);
+  border: 1px solid rgba(229,57,53,.2);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .csv-steps {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+  .csv-step-connector {
+    width: 24px;
+  }
+  .mapping-grid {
+    grid-template-columns: 1fr;
+  }
+  .csv-upload-actions {
+    flex-direction: column;
+  }
+  .csv-preview-actions {
+    flex-direction: column;
+  }
+  .result-stats {
+    flex-direction: column;
+  }
+}
+</style>
+{% endblock %}

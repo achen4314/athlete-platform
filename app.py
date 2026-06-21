@@ -313,6 +313,13 @@ def data_entry():
                            tests=tests, brand=BrandConfig)
 
 
+@app.route("/csv-import")
+@login_required
+def csv_import_page():
+    """CSV 批量导入页面"""
+    return render_template("csv_import.html", brand=BrandConfig)
+
+
 @app.route("/ai-chat")
 @login_required
 def ai_chat():
@@ -728,6 +735,344 @@ def api_list_tests():
     """获取所有测试项目列表"""
     tests = FitnessTest.query.order_by(FitnessTest.name).all()
     return jsonify([t.to_dict() for t in tests])
+
+
+# ==================== CSV 批量导入 API ====================
+
+import csv
+import io
+
+_csv_uploaded_file = None  # 临时存储上传的 CSV 内容
+
+
+def _normalize_header(h):
+    """标准化 CSV 列名用于匹配"""
+    return h.strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def _suggest_mapping(headers):
+    """根据列名自动建议映射"""
+    suggestions = {}
+    for idx, h in enumerate(headers):
+        nh = _normalize_header(h)
+        # 运动员姓名
+        if nh in ("athlete_name", "name", "athlete", "player", "运动员", "姓名", "运动员姓名", "选手"):
+            if "athlete_name" not in suggestions:
+                suggestions["athlete_name"] = idx
+        # 测试项目
+        elif nh in ("test_name", "test", "item", "event", "测试项目", "项目", "测试名称"):
+            if "test_name" not in suggestions:
+                suggestions["test_name"] = idx
+        # 测试日期
+        elif nh in ("test_date", "date", "测试日期", "日期", "时间"):
+            if "test_date" not in suggestions:
+                suggestions["test_date"] = idx
+        # 测试值
+        elif nh in ("raw_value", "value", "result", "score", "数值", "测试值", "成绩", "结果"):
+            if "raw_value" not in suggestions:
+                suggestions["raw_value"] = idx
+        # 单位
+        elif nh in ("unit", "单位"):
+            if "unit" not in suggestions:
+                suggestions["unit"] = idx
+        # 备注
+        elif nh in ("notes", "note", "remark", "备注", "说明"):
+            if "notes" not in suggestions:
+                suggestions["notes"] = idx
+    return suggestions
+
+
+@app.route("/api/import/csv", methods=["POST"])
+@login_required
+def api_import_csv_preview():
+    """上传 CSV 并返回预览和列映射建议"""
+    if "file" not in request.files:
+        return jsonify({"error": "未上传文件"}), 400
+    
+    file = request.files["file"]
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        return jsonify({"error": "仅支持 .csv 格式文件"}), 400
+    
+    try:
+        content = file.read()
+        # 尝试多种编码解码
+        text = None
+        for encoding in ("utf-8", "utf-8-sig", "gbk", "gb2312", "latin-1"):
+            try:
+                text = content.decode(encoding)
+                break
+            except (UnicodeDecodeError, LookupError):
+                continue
+        
+        if text is None:
+            return jsonify({"error": "无法解析文件编码"}), 400
+        
+        # 存储原始内容供后续导入使用
+        global _csv_uploaded_file
+        _csv_uploaded_file = content
+        
+        reader = csv.reader(io.StringIO(text))
+        rows = list(reader)
+        
+        if len(rows) < 2:
+            return jsonify({"error": "CSV 文件至少需要包含表头和一行数据"}), 400
+        
+        headers = [h.strip() for h in rows[0]]
+        data_rows = rows[1:]
+        
+        # 过滤空行
+        data_rows = [r for r in data_rows if any(c.strip() for c in r)]
+        
+        if not data_rows:
+            return jsonify({"error": "CSV 文件没有有效数据行"}), 400
+        
+        total_rows = len(data_rows)
+        preview_rows = data_rows[:5]
+        mapping_suggestions = _suggest_mapping(headers)
+        
+        # 预验证数据行
+        errors = []
+        valid_count = total_rows
+        tests_map = {t.name: t.id for t in FitnessTest.query.all()}
+        athletes_map = {a.name: a.id for a in Athlete.query.all()}
+        
+        for i, row in enumerate(data_rows, start=2):  # 从第2行开始（第1行是表头）
+            row_dict = {}
+            for j, header in enumerate(headers):
+                if j < len(row):
+                    row_dict[_normalize_header(header)] = row[j].strip()
+            
+            # 检查运动员
+            athlete_name = row_dict.get("athlete_name", "") or row_dict.get("name", "") or row_dict.get("athlete", "")
+            if not athlete_name:
+                errors.append({"row": i, "field": "athlete_name", "message": "运动员姓名为空"})
+                valid_count -= 1
+                continue
+            
+            # 检查测试项目
+            test_name = row_dict.get("test_name", "") or row_dict.get("test", "") or row_dict.get("item", "")
+            if not test_name:
+                errors.append({"row": i, "field": "test_name", "message": "测试项目名称为空"})
+                valid_count -= 1
+                continue
+            if test_name not in tests_map:
+                errors.append({"row": i, "field": "test_name", "message": f"测试项目「{test_name}」未找到，请检查名称"})
+                valid_count -= 1
+            
+            # 检查日期
+            test_date = row_dict.get("test_date", "") or row_dict.get("date", "")
+            if not test_date:
+                errors.append({"row": i, "field": "test_date", "message": "测试日期为空"})
+                valid_count -= 1
+            else:
+                try:
+                    datetime.strptime(test_date, "%Y-%m-%d")
+                except ValueError:
+                    try:
+                        datetime.strptime(test_date, "%Y/%m/%d")
+                    except ValueError:
+                        errors.append({"row": i, "field": "test_date", "message": f"日期格式无效: {test_date}，期望 YYYY-MM-DD"})
+                        valid_count -= 1
+            
+            # 检查数值
+            raw_value = row_dict.get("raw_value", "") or row_dict.get("value", "")
+            if not raw_value:
+                errors.append({"row": i, "field": "raw_value", "message": "测试值为空"})
+                valid_count -= 1
+            else:
+                try:
+                    float(raw_value)
+                except ValueError:
+                    errors.append({"row": i, "field": "raw_value", "message": f"无效数值: {raw_value}"})
+                    valid_count -= 1
+        
+        return jsonify({
+            "headers": headers,
+            "preview_rows": preview_rows,
+            "total_rows": total_rows,
+            "valid_rows": max(valid_count, 0),
+            "mapping_suggestions": mapping_suggestions,
+            "errors": errors[:20],  # 最多返回20条错误
+        })
+    
+    except csv.Error as e:
+        return jsonify({"error": f"CSV 解析错误: {str(e)}"}), 400
+    except Exception as e:
+        logger.error("CSV 上传处理失败: %s", e)
+        return jsonify({"error": f"处理失败: {str(e)}"}), 500
+
+
+@app.route("/api/import/csv/confirm", methods=["POST"])
+@login_required
+def api_import_csv_confirm():
+    """确认列映射并执行导入"""
+    global _csv_uploaded_file
+    
+    if _csv_uploaded_file is None:
+        return jsonify({"error": "未找到上传的文件，请重新上传"}), 400
+    
+    data = request.get_json()
+    if not data or "mapping" not in data:
+        return jsonify({"error": "缺少列映射"}), 400
+    
+    mapping = data["mapping"]  # {"athlete_name": 0, "test_name": 1, ...}
+    skip_duplicates = data.get("skip_duplicates", True)
+    
+    # 检查必填字段
+    required = ["athlete_name", "test_name", "test_date", "raw_value"]
+    for field in required:
+        if field not in mapping or mapping[field] is None:
+            return jsonify({"error": f"缺少必填字段映射: {field}"}), 400
+    
+    try:
+        # 解码文件
+        text = None
+        for encoding in ("utf-8", "utf-8-sig", "gbk", "gb2312", "latin-1"):
+            try:
+                text = _csv_uploaded_file.decode(encoding)
+                break
+            except (UnicodeDecodeError, LookupError):
+                continue
+        
+        reader = csv.reader(io.StringIO(text))
+        rows = list(reader)
+        
+        if len(rows) < 2:
+            return jsonify({"error": "CSV 文件数据不足"}), 400
+        
+        headers = [h.strip() for h in rows[0]]
+        data_rows = rows[1:]
+        data_rows = [r for r in data_rows if any(c.strip() for c in r)]
+        
+        # 构建测试项目和运动员的查找表
+        tests_map = {t.name: t.id for t in FitnessTest.query.all()}
+        athletes_map = {a.name: a.id for a in Athlete.query.all()}
+        
+        # 当前用户信息（运动员只能导入自己的数据）
+        user = g.current_user
+        
+        imported = 0
+        skipped = 0
+        error_details = []
+        
+        for i, row in enumerate(data_rows, start=2):
+            try:
+                # 根据映射提取字段
+                def _get_val(field):
+                    idx = mapping.get(field)
+                    if idx is not None and idx < len(row):
+                        return row[idx].strip()
+                    return ""
+                
+                athlete_name = _get_val("athlete_name")
+                test_name = _get_val("test_name")
+                test_date_str = _get_val("test_date")
+                raw_value_str = _get_val("raw_value")
+                unit_str = _get_val("unit")
+                notes_str = _get_val("notes")
+                
+                # 验证运动员
+                athlete_id = athletes_map.get(athlete_name)
+                if not athlete_id:
+                    error_details.append({"row": i, "message": f"运动员「{athlete_name}」不存在"})
+                    continue
+                
+                # 运动员只能导入自己的数据
+                if user.role == "athlete":
+                    athlete = Athlete.query.get(athlete_id)
+                    if not athlete or athlete.user_id != user.id:
+                        error_details.append({"row": i, "message": f"无权限导入运动员「{athlete_name}」的数据"})
+                        continue
+                
+                # 验证测试项目
+                test_id = tests_map.get(test_name)
+                if not test_id:
+                    error_details.append({"row": i, "message": f"测试项目「{test_name}」未找到"})
+                    continue
+                
+                # 验证日期
+                try:
+                    test_date = datetime.strptime(test_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    try:
+                        test_date = datetime.strptime(test_date_str, "%Y/%m/%d").date()
+                    except ValueError:
+                        error_details.append({"row": i, "message": f"日期格式无效: {test_date_str}"})
+                        continue
+                
+                # 验证数值
+                try:
+                    raw_value = float(raw_value_str)
+                except ValueError:
+                    error_details.append({"row": i, "message": f"无效数值: {raw_value_str}"})
+                    continue
+                
+                # 检查重复
+                if skip_duplicates:
+                    existing = TestRecord.query.filter_by(
+                        athlete_id=athlete_id,
+                        test_id=test_id,
+                        test_date=test_date,
+                    ).first()
+                    if existing:
+                        skipped += 1
+                        continue
+                
+                # 创建记录
+                record = TestRecord(
+                    athlete_id=athlete_id,
+                    test_id=test_id,
+                    test_date=test_date,
+                    raw_value=raw_value,
+                    notes=notes_str or None,
+                )
+                db.session.add(record)
+                imported += 1
+            
+            except Exception as e:
+                error_details.append({"row": i, "message": str(e)})
+        
+        db.session.commit()
+        logger.info("CSV 批量导入完成: 成功=%d, 跳过=%d, 错误=%d", imported, skipped, len(error_details))
+        
+        # 清除临时文件
+        _csv_uploaded_file = None
+        
+        return jsonify({
+            "imported": imported,
+            "skipped": skipped,
+            "errors": len(error_details),
+            "error_details": error_details[:50],
+        })
+    
+    except Exception as e:
+        logger.error("CSV 导入失败: %s", e)
+        return jsonify({"error": f"导入失败: {str(e)}"}), 500
+
+
+@app.route("/api/import/template")
+@login_required
+def api_import_template():
+    """下载 CSV 模板文件"""
+    from flask import Response
+    
+    template_csv = (
+        "athlete_name,test_name,test_date,raw_value,unit,notes\n"
+        + "张三,30米冲刺,2024-06-15,4.32,秒,晴天\n"
+        + "张三,立定跳远,2024-06-15,245,厘米,\n"
+        + "张三,卧推1RM,2024-06-22,85,公斤,进步明显\n"
+        + "李四,垂直纵跳,2024-06-15,65,厘米,\n"
+        + "李四,YoYo间歇恢复,2024-06-15,16.5,级,疲劳\n"
+    )
+    
+    return Response(
+        template_csv,
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=import_template.csv",
+            "Content-Type": "text/csv; charset=utf-8-sig",
+        }
+    )
 
 
 # ==================== 教练端 API ====================
@@ -1329,7 +1674,151 @@ def video_player_page(video_id):
                            athlete=athlete, brand=BrandConfig)
 
 
-# ==================== 错误处理 ====================
+@app.route("/videos/compare")
+@login_required
+def video_compare_page():
+    """视频对比页面 — 并排对比两段视频的分析指标"""
+    user = g.current_user
+    athlete = Athlete.query.filter_by(user_id=user.id).first()
+    
+    if not athlete:
+        return render_template("video_compare.html", athlete=None,
+                               videos=[], brand=BrandConfig)
+    
+    videos = Video.query.filter_by(athlete_id=athlete.id) \
+        .order_by(Video.created_at.desc()).all()
+    
+    return render_template("video_compare.html", athlete=athlete,
+                           videos=videos, brand=BrandConfig)
+
+
+@app.route("/api/videos/compare_data")
+@login_required
+def api_video_compare_data():
+    """获取两个视频的对比分析数据
+    
+    Query params:
+        ids: 逗号分隔的视频ID列表（最多2个），如 ids=abc123,def456
+    """
+    ids_str = request.args.get("ids", "")
+    video_ids = [x.strip() for x in ids_str.split(",") if x.strip()]
+    
+    if len(video_ids) < 2:
+        return jsonify({"error": "请提供至少2个视频ID（ids=id1,id2）"}), 400
+    
+    # 取前两个
+    video_ids = video_ids[:2]
+    
+    results = []
+    for vid in video_ids:
+        video = Video.query.filter_by(video_id=vid).first()
+        if not video:
+            results.append({"video_id": vid, "error": "视频不存在", "metrics": {}})
+            continue
+        
+        user = g.current_user
+        if user.role == "athlete":
+            athlete = Athlete.query.filter_by(user_id=user.id).first()
+            if not athlete or video.athlete_id != athlete.id:
+                results.append({"video_id": vid, "error": "权限不足", "metrics": {}})
+                continue
+        
+        parsed = video.parsed_results
+        results.append({
+            "video_id": vid,
+            "original_filename": video.original_filename,
+            "test_type": video.test_type,
+            "duration_seconds": video.duration_seconds,
+            "status": video.status,
+            "status_label": video.status_label,
+            "created_at": video.created_at.isoformat() if video.created_at else None,
+            "metrics": parsed.get("metrics", {}),
+            "keyframe_data": parsed.get("keyframe_data", []),
+        })
+    
+    return jsonify({
+        "videos": results,
+        "comparison": _build_comparison(results),
+    })
+
+
+def _build_comparison(results):
+    """构建两个视频指标的差异对比
+    
+    Returns:
+        list of dict: [{metric, value_a, value_b, diff, direction, unit}, ...]
+    """
+    if len(results) < 2:
+        return []
+    
+    a = results[0].get("metrics", {})
+    b = results[1].get("metrics", {})
+    
+    all_keys = set(list(a.keys()) + list(b.keys()))
+    
+    # Metric display config
+    metric_config = {
+        'step_frequency': ('步频', '步/分', False),
+        'cadence': ('步频', '步/分', False),
+        'stride_length': ('步幅', 'm', False),
+        'step_length': ('步幅', 'm', False),
+        'jump_height': ('纵跳高度', 'cm', False),
+        'vertical_jump': ('纵跳高度', 'cm', False),
+        'speed': ('速度', 'm/s', False),
+        'avg_speed': ('平均速度', 'm/s', False),
+        'max_speed': ('最大速度', 'm/s', False),
+        'acceleration': ('加速度', 'm/s²', False),
+        'knee_angle': ('膝角', '°', False),
+        'hip_angle': ('髋角', '°', False),
+        'ankle_angle': ('踝角', '°', False),
+        'elbow_angle': ('肘角', '°', False),
+        'trunk_angle': ('躯干角', '°', False),
+        'ground_contact': ('触地时间', 'ms', True),
+        'contact_time': ('触地时间', 'ms', True),
+        'flight_time': ('腾空时间', 'ms', False),
+        'power': ('功率', 'W', False),
+        'force': ('力量', 'N', False),
+        'symmetry': ('对称性', '%', False),
+        'balance': ('平衡', '%', False),
+    }
+    
+    comparison = []
+    for key in sorted(all_keys):
+        config = metric_config.get(key, (key.replace('_', ' '), '', False))
+        name, unit, lower_is_better = config
+        
+        val_a = a.get(key)
+        val_b = b.get(key)
+        
+        item = {
+            "metric": key,
+            "name": name,
+            "unit": unit,
+            "value_a": val_a,
+            "value_b": val_b,
+            "diff": None,
+            "direction": "neutral",  # improved / declined / neutral
+        }
+        
+        if (val_a is not None and val_b is not None 
+            and isinstance(val_a, (int, float)) and isinstance(val_b, (int, float))):
+            diff = val_b - val_a
+            item["diff"] = round(diff, 2) if abs(diff) >= 0.01 else 0.0
+            if lower_is_better:
+                if diff < -0.001:
+                    item["direction"] = "improved"
+                elif diff > 0.001:
+                    item["direction"] = "declined"
+            else:
+                if diff > 0.001:
+                    item["direction"] = "improved"
+                elif diff < -0.001:
+                    item["direction"] = "declined"
+        
+        comparison.append(item)
+    
+    return comparison
+
 
 @app.errorhandler(404)
 def not_found(error):
@@ -2123,7 +2612,8 @@ def _ensure_db():
         _db_initialized = True
         logger.info("数据库初始化完成（含演示用户+数据）")
     except Exception as e:
-        logger.warning("数据库初始化失败（将重试）: %s", e)
+        import traceback as _tb
+        logger.warning("数据库初始化失败（将重试）: %s\n%s", e, _tb.format_exc())
 
 
 def _seed_demo_data():
@@ -2199,8 +2689,13 @@ def _seed_demo_data():
     db.session.commit()
     logger.info("演示数据已生成: %d名运动员, %d个测试项目", len(athletes), len(tests))
 
-# 立即尝试初始化
-_ensure_db()
+# 立即尝试初始化（在应用上下文中执行，确保 gunicorn 启动时即完成初始化）
+try:
+    with app.app_context():
+        _ensure_db()
+except Exception as _init_err:
+    import traceback as _tb2
+    logger.warning("启动时数据库初始化失败（将在首次请求时重试）: %s\n%s", _init_err, _tb2.format_exc())
 
 @app.before_request
 def _init_db_on_first_request():
@@ -2209,7 +2704,8 @@ def _init_db_on_first_request():
 
 
 if __name__ == "__main__":
-    _ensure_db()
+    with app.app_context():
+        _ensure_db()
 
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=app.config.get("DEBUG", True))

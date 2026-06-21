@@ -2,8 +2,15 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{% block title %}运动员数据分析平台{% endblock %}</title>
+  <!-- PWA -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#a0c040">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="铁牛训练">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icon-192.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   {% block extra_head %}{% endblock %}
 </head>
@@ -40,9 +47,15 @@
         <a href="{{ url_for('coach_team_compare') }}" class="nav-item {% if request.endpoint == 'coach_team_compare' %}active{% endif %}">
           <span class="nav-icon">📊</span> 横向对比
         </a>
+        <a href="{{ url_for('csv_import_page') }}" class="nav-item {% if request.endpoint == 'csv_import_page' %}active{% endif %}">
+          <span class="nav-icon">📥</span> 批量导入
+        </a>
         {% else %}
         <a href="{{ url_for('data_entry') }}" class="nav-item {% if request.endpoint == 'data_entry' %}active{% endif %}">
           <span class="nav-icon">📝</span> 数据录入
+        </a>
+        <a href="{{ url_for('csv_import_page') }}" class="nav-item {% if request.endpoint == 'csv_import_page' %}active{% endif %}">
+          <span class="nav-icon">📥</span> 批量导入
         </a>
         <a href="{{ url_for('athlete_my_plan') }}" class="nav-item {% if request.endpoint == 'athlete_my_plan' %}active{% endif %}">
           <span class="nav-icon">🏃</span> 我的训练
@@ -53,6 +66,9 @@
         </a>
         <a href="{{ url_for('video_list_page') }}" class="nav-item {% if request.endpoint == 'video_list_page' or request.endpoint == 'video_player_page' %}active{% endif %}">
           <span class="nav-icon">🎥</span> 视频分析
+        </a>
+        <a href="{{ url_for('video_compare_page') }}" class="nav-item {% if request.endpoint == 'video_compare_page' %}active{% endif %}">
+          <span class="nav-icon">⚖️</span> 视频对比
         </a>
         {% if session.get('role') in ('coach', 'doctor', 'analyst', 'admin') %}
         <a href="{{ url_for('coach_leaderboard') }}" class="nav-item {% if request.endpoint == 'coach_leaderboard' %}active{% endif %}">
@@ -145,5 +161,16 @@
   </script>
 
   {% block scripts %}{% endblock %}
+
+  <!-- Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/sw.js').then(function(reg) {
+        console.log('[PWA] Service Worker registered:', reg.scope);
+      }).catch(function(err) {
+        console.warn('[PWA] Service Worker registration failed:', err);
+      });
+    }
+  </script>
 </body>
 </html>
