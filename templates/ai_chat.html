@@ -4,6 +4,17 @@
 
 {% block content %}
 <div class="chat-container">
+  <!-- API 密钥未配置提示（从后端检测） -->
+  <div class="api-key-warning" id="apiKeyWarning" style="display:none;">
+    <div class="warning-card animate-fade-up">
+      <span class="warning-icon">⚠️</span>
+      <div>
+        <strong>AI 服务未配置</strong><br>
+        <small>请设置 <code>DEEPSEEK_API_KEY</code> 环境变量以启用 AI 对话功能</small>
+      </div>
+    </div>
+  </div>
+
   <!-- 消息列表 -->
   <div class="chat-messages" id="chatMessages">
     <!-- 欢迎消息 -->

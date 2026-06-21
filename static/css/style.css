@@ -302,6 +302,38 @@ img { max-width: 100%; display: block; }
 .card-accent-gold  { border-left: 3px solid var(--brand-gold); }
 .card-accent-teal  { border-left: 3px solid var(--brand-teal); }
 
+/* API 密钥警告卡片 */
+.api-key-warning {
+  margin-bottom: 12px;
+}
+.warning-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #3d2e0a 0%, #2a1f06 100%);
+  border: 1px solid #c0c060;
+  border-radius: 10px;
+  color: #f0e68c;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.warning-card .warning-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.warning-card strong {
+  color: #ffd700;
+}
+.warning-card code {
+  background: rgba(255,215,0,0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  color: #ffe066;
+}
+
 /* 指标卡片 */
 .metric-grid {
   display: grid;

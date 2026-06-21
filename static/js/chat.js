@@ -205,8 +205,16 @@
         data = { content: event.data };
       }
 
-      if (data.content !== undefined) {
-        fullContent += data.content;
+      // 检测 API 密钥未配置错误
+      if (data.error && data.error.indexOf('API') !== -1) {
+        assistantBubble.innerHTML = '<span style="color:#ff6b6b;">⚠️ ' + data.error + '</span>';
+        showApiKeyWarning();
+        closeSSE();
+        return;
+      }
+
+      if (data.token !== undefined) {
+        fullContent += data.token;
         assistantBubble.innerHTML = renderMarkdown(fullContent);
         smoothScrollToBottom();
       }
@@ -220,17 +228,16 @@
       removeThinking();
 
       if (!assistantMsg) {
-        // 还没收到任何内容就出错了
         assistantMsg = createMessageElement('assistant');
         assistantBubble = assistantMsg.querySelector('.msg-bubble');
         chatMessages.appendChild(assistantMsg);
       }
 
       if (fullContent) {
-        // 已有一部分内容，标记完成
         assistantBubble.innerHTML = renderMarkdown(fullContent);
       } else {
-        assistantBubble.innerHTML = '⚠️ 连接中断，请稍后重试。';
+        assistantBubble.innerHTML = '⚠️ 连接中断，请检查 API 配置后重试。';
+        showApiKeyWarning();
       }
 
       closeSSE();
@@ -240,6 +247,16 @@
     es.addEventListener('open', function() {
       // SSE 连接已建立
     });
+  }
+
+  function showApiKeyWarning() {
+    var warning = document.getElementById('apiKeyWarning');
+    if (warning) {
+      warning.style.display = 'block';
+      // 禁快速提示
+      var prompts = document.getElementById('quickPrompts');
+      if (prompts) prompts.style.opacity = '0.5';
+    }
   }
 
   function closeSSE() {
