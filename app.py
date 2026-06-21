@@ -1469,10 +1469,87 @@ def _ensure_db():
                          height_cm=185.0, weight_kg=78.0, level="省级", training_years=6)
             db.session.add_all([a1, a2])
             db.session.commit()
+        # 如果没有任何测试记录，生成演示数据
+        if not TestRecord.query.first():
+            _seed_demo_data()
         _db_initialized = True
-        logger.info("数据库初始化完成（含演示用户）")
+        logger.info("数据库初始化完成（含演示用户+数据）")
     except Exception as e:
         logger.warning("数据库初始化失败（将重试）: %s", e)
+
+
+def _seed_demo_data():
+    """生成演示用的测试记录和训练日志"""
+    import random
+    from datetime import timedelta
+    
+    athletes = Athlete.query.all()
+    tests = FitnessTest.query.all()
+    if not athletes or not tests:
+        return
+    
+    today = date.today()
+    # 为每个运动员生成最近6个月的数据
+    for athlete in athletes:
+        for month_offset in range(6):
+            test_date = today - timedelta(days=30 * month_offset + random.randint(0, 14))
+            # 每个运动员每月测4-8个项目
+            for test in random.sample(tests, min(len(tests), random.randint(4, 8))):
+                # 模拟递进进步趋势
+                base = random.uniform(0.7, 1.3)  # 基础值
+                progress = 1 + (6 - month_offset) * random.uniform(-0.03, 0.05)  # 进步因子
+                # 根据测试类型生成合理值
+                if test.unit == "秒":
+                    val = round(base * 5 * progress, 2)
+                elif test.unit == "厘米":
+                    val = round(base * 60 * progress, 1)
+                elif test.unit == "公斤":
+                    val = round(base * 80 * progress, 1) if athlete.name == "张三" else round(base * 65 * progress, 1)
+                elif test.unit == "次":
+                    val = round(base * 15 * progress)
+                elif test.unit == "级":
+                    val = round(base * 12 * progress, 1)
+                elif test.unit == "%":
+                    val = round(base * 15 * progress, 1)
+                elif test.unit == "分":
+                    val = round(base * 14 * progress)
+                else:
+                    val = round(base * 10 * progress, 1)
+                
+                db.session.add(TestRecord(
+                    athlete_id=athlete.id, test_id=test.id,
+                    test_date=test_date, raw_value=val
+                ))
+        
+        # 每月一条身体指标
+        for month_offset in range(6):
+            m_date = today - timedelta(days=30 * month_offset + 15)
+            db.session.add(BodyMetric(
+                athlete_id=athlete.id, record_date=m_date,
+                weight_kg=athlete.weight_kg + random.uniform(-2, 2),
+                body_fat_pct=round(12 + random.uniform(-3, 3), 1),
+                resting_hr=random.randint(48, 65),
+            ))
+        
+        # 每周2-3条训练日志
+        for week_offset in range(24):
+            t_date = today - timedelta(days=week_offset * 3 + random.randint(0, 2))
+            if t_date > today:
+                continue
+            intensities = ["low", "medium", "high"]
+            workouts = ["力量训练-深蹲+卧推", "速度训练-冲刺跑", "有氧耐力-5km跑",
+                       "爆发力训练-跳箱", "敏捷训练-折返跑", "恢复训练-拉伸"]
+            db.session.add(TrainingLog(
+                athlete_id=athlete.id, session_date=t_date,
+                duration_min=random.randint(45, 120),
+                intensity=random.choice(intensities),
+                rpe=random.randint(4, 9),
+                content=random.choice(workouts),
+                hr_avg=random.randint(110, 160),
+            ))
+    
+    db.session.commit()
+    logger.info("演示数据已生成: %d名运动员, %d个测试项目", len(athletes), len(tests))
 
 # 立即尝试初始化
 _ensure_db()
