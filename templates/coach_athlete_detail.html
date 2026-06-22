@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ athlete.name }} — 运动员详情 — 运动员平台{% endblock %}
-{% block page_title %}🏃 {{ athlete.name }} 详细分析{% endblock %}
+{% block page_title %}{{ athlete.name }} 详细分析{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
@@ -11,12 +11,12 @@
 
   <!-- 基本信息卡片 -->
   <div class="welcome-card">
-    <div class="athlete-name">🏅 {{ athlete.name }}</div>
+    <div class="athlete-name">{{ athlete.name }}</div>
     <div class="athlete-meta">
-      <span>📌 {{ athlete.sport_type or '未设置' }} / {{ athlete.position or '未设置' }}</span>
-      <span>🎯 {{ athlete.level or '未知等级' }}</span>
-      <span>📏 {{ athlete.height_cm }}cm · {{ athlete.weight_kg }}kg</span>
-      <span>🎂 {{ athlete.age }}岁 · 训练 {{ athlete.training_years }}年</span>
+      <span>{{ athlete.sport_type or '未设置' }} / {{ athlete.position or '未设置' }}</span>
+      <span>{{ athlete.level or '未知等级' }}</span>
+      <span>{{ athlete.height_cm }}cm · {{ athlete.weight_kg }}kg</span>
+      <span>{{ athlete.age }}岁 · 训练 {{ athlete.training_years }}年</span>
     </div>
   </div>
 
@@ -25,7 +25,7 @@
     <!-- 雷达图：8 维度 -->
     <div class="card card-accent-green">
       <div class="card-header">
-        <span class="card-title">🎯 能力雷达图（T分）</span>
+        <span class="card-title">能力雷达图（T分）</span>
       </div>
       <div id="radarChart" style="width:100%;height:380px;"></div>
     </div>
@@ -33,14 +33,14 @@
     <!-- 趋势折线图 -->
     <div class="card card-accent-teal">
       <div class="card-header">
-        <span class="card-title">📈 {{ trend_test_name or '测试' }} 变化趋势</span>
+        <span class="card-title">{{ trend_test_name or '测试' }} 变化趋势</span>
         <span class="badge badge-teal">{{ trend_unit }}</span>
       </div>
       {% if trend_data %}
       <div id="trendChart" style="width:100%;height:380px;"></div>
       {% else %}
       <div class="empty-state">
-        <div class="empty-icon">📈</div>
+        <div class="empty-icon">—</div>
         <p>暂无趋势数据</p>
       </div>
       {% endif %}
@@ -50,7 +50,7 @@
   <!-- Z/T-score 明细表 -->
   <div class="card card-accent-gold" style="margin-top:20px;">
     <div class="card-header">
-      <span class="card-title">📋 Z/T-Score 明细</span>
+      <span class="card-title">Z/T-Score 明细</span>
       <span class="badge badge-gold">{{ zt_scores|length }} 项</span>
     </div>
     {% if zt_scores %}
@@ -102,7 +102,7 @@
     </div>
     {% else %}
     <div class="empty-state">
-      <div class="empty-icon">📋</div>
+      <div class="empty-icon">—</div>
       <p>暂无测试记录</p>
     </div>
     {% endif %}
@@ -111,7 +111,7 @@
   <!-- AI 诊断建议 -->
   <div class="card card-accent-green" style="margin-top:20px;">
     <div class="card-header">
-      <span class="card-title">🤖 AI 诊断建议</span>
+      <span class="card-title">AI 诊断建议</span>
       <a href="{{ url_for('ai_chat') }}" class="btn btn-ghost btn-sm">详细分析 →</a>
     </div>
     <div style="font-size:0.9rem;line-height:1.8;color:var(--text-secondary);">
@@ -127,36 +127,36 @@
         {% endif %}
       {% endfor %}
 
-      <p><strong>🔍 综合分析：</strong></p>
+      <p><strong>综合分析：</strong></p>
       <ul style="margin:8px 0;padding-left:20px;">
         {% if strengths %}
-        <li>🏆 <strong>优势领域：</strong>{{ strengths[:5]|join('、') }}{% if strengths|length > 5 %}等{{ strengths|length }}项{% endif %} — T分均超过60，表现优异</li>
+        <li><strong>优势领域：</strong>{{ strengths[:5]|join('、') }}{% if strengths|length > 5 %}等{{ strengths|length }}项{% endif %} — T分均超过60，表现优异</li>
         {% endif %}
         {% if weaknesses %}
-        <li style="color:var(--danger);">⚠️ <strong>需关注：</strong>{{ weaknesses|join('、') }} — T分低于40，建议加强针对性训练</li>
+        <li style="color:var(--danger);"><strong>需关注：</strong>{{ weaknesses|join('、') }} — T分低于40，建议加强针对性训练</li>
         {% endif %}
         {% if not strengths and not weaknesses %}
-        <li>📊 整体表现处于团队平均水平，各项指标稳定</li>
+        <li>整体表现处于团队平均水平，各项指标稳定</li>
         {% endif %}
         {% if strengths and not weaknesses %}
-        <li>✅ 整体表现良好，各项指标均在可接受范围</li>
+        <li>整体表现良好，各项指标均在可接受范围</li>
         {% endif %}
       </ul>
       <p style="margin-top:8px;">
-        💡 <em>提示：点击右上角「详细分析」让 AI 助手生成个性化训练建议</em>
+        <em>提示：点击右上角「详细分析」让 AI 助手生成个性化训练建议</em>
       </p>
     </div>
   </div>
 
   <div style="margin-top:20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
     <a href="{{ url_for('coach_athletes') }}" class="btn btn-ghost">← 返回列表</a>
-    <a href="{{ url_for('coach_team_compare') }}" class="btn btn-secondary">📊 横向对比</a>
+    <a href="{{ url_for('coach_team_compare') }}" class="btn btn-secondary">横向对比</a>
     <a href="{{ url_for('api_coach_athlete_report_pdf', athlete_id=athlete.id) }}"
        class="btn btn-primary"
        style="background:var(--primary,#a0c040);color:#fff;"
        target="_blank"
        title="下载 {{ athlete.name }} 的综合分析报告 PDF">
-      📄 导出 PDF 报告
+      导出 PDF 报告
     </a>
   </div>
 

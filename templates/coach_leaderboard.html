@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}队内排行榜 — 运动员平台{% endblock %}
-{% block page_title %}🏆 队内排行榜{% endblock %}
+{% block page_title %}队内排行榜{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -189,7 +189,7 @@
       {% endfor %}
     </select>
   </div>
-  <div class="btn btn-ghost btn-sm" onclick="loadLeaderboard()">🔄 刷新</div>
+  <div class="btn btn-ghost btn-sm" onclick="loadLeaderboard()">刷新</div>
 </div>
 
 <!-- 排行榜表格 -->
@@ -208,7 +208,7 @@
       <tbody id="rankTableBody">
         <tr>
           <td colspan="5">
-            <div class="loading-state">👆 请选择一个测试项目开始查看排行榜</div>
+            <div class="loading-state">请选择一个测试项目开始查看排行榜</div>
           </td>
         </tr>
       </tbody>
@@ -217,7 +217,7 @@
 </div>
 
 <div class="info-callout">
-  <strong>💡 说明：</strong> T分以50为基准，高于50表示高于队内平均水平。趋势箭头基于该运动员最近两次测试成绩的变化方向。前三名分别以🥇金牌、🥈银牌、🥉铜牌高亮。
+  <strong>说明：</strong> T分以50为基准，高于50表示高于队内平均水平。趋势箭头基于该运动员最近两次测试成绩的变化方向。
 </div>
 
 {% endblock %}
@@ -241,11 +241,11 @@ function loadLeaderboard() {
   var tbody = document.getElementById('rankTableBody');
 
   if (!testId) {
-    tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">👆 请选择一个测试项目开始查看排行榜</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">请选择一个测试项目开始查看排行榜</div></td></tr>';
     return;
   }
 
-  tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">⏳ 加载中...</div></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">加载中...</div></td></tr>';
 
   // 如果已缓存直接用
   if (allAthleteData && allAthleteData.athletes) {
@@ -260,7 +260,7 @@ function loadLeaderboard() {
       renderTable(testId, data);
     })
     .catch(e => {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">❌ 数据加载失败: ' + e.message + '</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">数据加载失败: ' + e.message + '</div></td></tr>';
     });
 }
 
@@ -277,7 +277,7 @@ function renderTable(testId, data) {
   });
 
   if (!testInfo) {
-    tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">❌ 测试项目不存在</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">测试项目不存在</div></td></tr>';
     return;
   }
 
@@ -297,7 +297,7 @@ function renderTable(testId, data) {
   });
 
   if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">📭 该项目暂无测试数据</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5"><div class="loading-state">该项目暂无测试数据</div></td></tr>';
     return;
   }
 
@@ -340,10 +340,9 @@ function renderTable(testId, data) {
   rows.forEach(function(r, idx) {
     var rank = idx + 1;
     var rankClass = '';
-    var rankEmoji = '';
-    if (rank === 1) { rankClass = 'rank-1'; rankEmoji = '🥇'; }
-    else if (rank === 2) { rankClass = 'rank-2'; rankEmoji = '🥈'; }
-    else if (rank === 3) { rankClass = 'rank-3'; rankEmoji = '🥉'; }
+    if (rank === 1) { rankClass = 'rank-1'; }
+    else if (rank === 2) { rankClass = 'rank-2'; }
+    else if (rank === 3) { rankClass = 'rank-3'; }
 
     // T分颜色
     var tClass = 't-score-mid';
@@ -358,7 +357,7 @@ function renderTable(testId, data) {
 
     html +=
       '<tr class="' + rankClass + '">' +
-        '<td><div class="rank-num">' + rankEmoji + rank + '</div></td>' +
+        '<td><div class="rank-num">' + rank + '</div></td>' +
         '<td>' +
           '<div class="athlete-name-cell">' + escapeHtml(r.name) + '</div>' +
         '</td>' +

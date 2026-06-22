@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>登录 — SSP 铁牛 运动员平台</title>
+  <title>登录 — Athlete Trace</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <style>
     body {
-      background: radial-gradient(ellipse at 50% 40%, #16213e 0%, #1a1a2e 70%);
+      background: #f5f6f8;
     }
   </style>
 </head>
 <body>
   <div class="plain-layout">
     <div class="login-wrapper animate-fade-up">
-      <div class="login-card">
+      <div class="login-card" style="border:1px solid #e0e0e0;border-radius:8px;">
         <!-- 品牌 -->
-        <div class="login-logo">🏃</div>
-        <div class="login-brand-name">运动员平台</div>
-        <div class="login-brand-sub">运动员数据分析平台</div>
+        <div class="login-logo" style="font-weight:300;font-size:1.8rem;letter-spacing:4px;color:#2c3e50;">AT</div>
+        <div class="login-brand-name" style="font-weight:400;color:#2c3e50;">Athlete Trace</div>
+        <div class="login-brand-sub" style="color:#8899aa;font-weight:300;">运动数据科学平台</div>
 
         <!-- 登录表单 -->
         <form method="POST" action="{{ url_for('login') }}" autocomplete="off">
@@ -50,15 +50,15 @@
           <!-- 错误提示 -->
           {% if error %}
           <div style="color:var(--danger);font-size:0.8rem;margin-bottom:10px;text-align:center;">
-            ⚠️ {{ error }}
+            {{ error }}
           </div>
           {% endif %}
 
           <button type="submit" class="btn btn-primary btn-lg">登 录</button>
         </form>
 
-        <div class="login-footer">
-          运动员平台 · 运动员数据分析平台 MVP
+        <div class="login-footer" style="color:#aaa;font-weight:300;">
+          Athlete Trace · 运动数据科学平台
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}运动员列表 — 运动员平台{% endblock %}
-{% block page_title %}👥 运动员列表{% endblock %}
+{% block page_title %}运动员列表{% endblock %}
 
 {% block content %}
 <div class="animate-fade-up">
@@ -10,7 +10,7 @@
     {% for ad in athlete_data %}
     <a href="{{ url_for('coach_athlete_detail', athlete_id=ad.athlete.id) }}" class="coach-athlete-card">
       <div class="cac-header">
-        <span class="cac-avatar">🏃</span>
+        <span class="cac-avatar" style="font-weight:300;">AT</span>
         <div>
           <div class="cac-name">{{ ad.athlete.name }}</div>
           <div class="cac-meta">{{ ad.athlete.sport_type }} · {{ ad.athlete.position }}</div>
@@ -41,7 +41,7 @@
   </div>
   {% else %}
   <div class="empty-state">
-    <div class="empty-icon">👥</div>
+    <div class="empty-icon">—</div>
     <p>暂无运动员数据</p>
     <p style="font-size:0.78rem;margin-top:8px;">请先创建运动员档案并录入测试数据</p>
   </div>
@@ -49,7 +49,7 @@
 
   <div style="margin-top:20px;">
     <a href="{{ url_for('coach_dashboard') }}" class="btn btn-ghost">← 返回仪表盘</a>
-    <a href="{{ url_for('coach_team_compare') }}" class="btn btn-secondary" style="margin-left:8px;">📊 横向对比</a>
+    <a href="{{ url_for('coach_team_compare') }}" class="btn btn-secondary" style="margin-left:8px;">横向对比</a>
   </div>
 
 </div>

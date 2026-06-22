@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}队内横向对比 — 运动员平台{% endblock %}
-{% block page_title %}📊 队内横向对比{% endblock %}
+{% block page_title %}队内横向对比{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
@@ -12,8 +12,8 @@
   <!-- 选择器 -->
   <div class="card" style="margin-bottom:20px;">
     <div class="card-header">
-      <span class="card-title">🎯 选择对比范围</span>
-      <button class="btn btn-primary btn-sm" onclick="refreshCompare()">🔄 刷新图表</button>
+      <span class="card-title">选择对比范围</span>
+      <button class="btn btn-primary btn-sm" onclick="refreshCompare()">刷新图表</button>
     </div>
 
     <div style="margin-bottom:12px;">
@@ -44,7 +44,7 @@
   <!-- 柱状图 -->
   <div class="card card-accent-green" style="margin-bottom:20px;">
     <div class="card-header">
-      <span class="card-title">📊 并排对比柱状图</span>
+      <span class="card-title">并排对比柱状图</span>
     </div>
     <div id="compareBarChart" style="width:100%;height:450px;"></div>
   </div>
@@ -52,11 +52,11 @@
   <!-- 差异高亮表 -->
   <div class="card card-accent-gold">
     <div class="card-header">
-      <span class="card-title">🔍 差异高亮</span>
+      <span class="card-title">差异高亮</span>
     </div>
     <div id="diffTable" style="overflow-x:auto;">
       <div class="empty-state">
-        <div class="empty-icon">📊</div>
+        <div class="empty-icon">—</div>
         <p>请选择运动员和测试项目后点击「刷新图表」</p>
       </div>
     </div>

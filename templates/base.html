@@ -6,10 +6,10 @@
   <title>{% block title %}运动员数据分析平台{% endblock %}</title>
   <!-- PWA -->
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-  <meta name="theme-color" content="#a0c040">
+  <meta name="theme-color" content="#2c3e50">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="铁牛训练">
+  <meta name="apple-mobile-web-app-title" content="Athlete Trace">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icon-192.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   {% block extra_head %}{% endblock %}
@@ -22,66 +22,66 @@
     <!-- 侧边栏 -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
-        <span class="logo-icon">🏃</span>
+        <span class="logo-icon" style="font-weight:300;font-size:1.4rem;letter-spacing:2px;">AT</span>
         <span class="brand-text">
-          运动员平台<br>
-          <small>运动员数据分析平台</small>
+          Athlete Trace<br>
+          <small>运动数据科学平台</small>
         </span>
       </div>
 
       <nav class="sidebar-nav">
         <a href="{{ url_for('athlete_profile_page') }}" class="nav-item {% if request.endpoint == 'athlete_profile_page' %}active{% endif %}">
-          <span class="nav-icon">📋</span> 运动员档案
+          <span class="nav-icon" style="font-weight:300;">▦</span> 档案
         </a>
-        <div class="nav-section-title" style="margin-top:18px;">功能</div>
+        <div class="nav-section-title" style="margin-top:18px;font-weight:300;letter-spacing:1px;">功能</div>
         <a href="{{ url_for('dashboard') }}" class="nav-item {% if request.endpoint in ('dashboard', 'coach_dashboard') %}active{% endif %}">
-          <span class="nav-icon">📊</span> 仪表盘
+          <span class="nav-icon" style="font-weight:300;">▦</span> 数据
         </a>
         {% if session.get('role') in ('coach', 'doctor', 'analyst', 'admin') %}
         <a href="{{ url_for('coach_athletes') }}" class="nav-item {% if request.endpoint == 'coach_athletes' %}active{% endif %}">
-          <span class="nav-icon">👥</span> 运动员列表
+          <span class="nav-icon" style="font-weight:300;">☷</span> 列表
         </a>
         <a href="{{ url_for('coach_plans') }}" class="nav-item {% if request.endpoint in ('coach_plans', 'plan_editor', 'coach_plan_assign') %}active{% endif %}">
-          <span class="nav-icon">📋</span> 训练计划
+          <span class="nav-icon" style="font-weight:300;">≡</span> 计划
         </a>
         <a href="{{ url_for('coach_team_compare') }}" class="nav-item {% if request.endpoint == 'coach_team_compare' %}active{% endif %}">
-          <span class="nav-icon">📊</span> 横向对比
+          <span class="nav-icon" style="font-weight:300;">⇆</span> 对比
         </a>
         <a href="{{ url_for('csv_import_page') }}" class="nav-item {% if request.endpoint == 'csv_import_page' %}active{% endif %}">
-          <span class="nav-icon">📥</span> 批量导入
+          <span class="nav-icon" style="font-weight:300;">↓</span> 导入
         </a>
         {% else %}
         <a href="{{ url_for('data_entry') }}" class="nav-item {% if request.endpoint == 'data_entry' %}active{% endif %}">
-          <span class="nav-icon">📝</span> 数据录入
+          <span class="nav-icon" style="font-weight:300;">✎</span> 录入
         </a>
         <a href="{{ url_for('csv_import_page') }}" class="nav-item {% if request.endpoint == 'csv_import_page' %}active{% endif %}">
-          <span class="nav-icon">📥</span> 批量导入
+          <span class="nav-icon" style="font-weight:300;">↓</span> 导入
         </a>
         <a href="{{ url_for('athlete_my_plan') }}" class="nav-item {% if request.endpoint == 'athlete_my_plan' %}active{% endif %}">
-          <span class="nav-icon">🏃</span> 我的训练
+          <span class="nav-icon" style="font-weight:300;">◷</span> 训练
         </a>
         {% endif %}
         <a href="{{ url_for('ai_chat') }}" class="nav-item {% if request.endpoint == 'ai_chat' %}active{% endif %}">
-          <span class="nav-icon">🤖</span> AI 对话
+          <span class="nav-icon" style="font-weight:300;">◈</span> AI
         </a>
         <a href="{{ url_for('video_list_page') }}" class="nav-item {% if request.endpoint == 'video_list_page' or request.endpoint == 'video_player_page' %}active{% endif %}">
-          <span class="nav-icon">🎥</span> 视频分析
+          <span class="nav-icon" style="font-weight:300;">▸</span> 视频
         </a>
         <a href="{{ url_for('video_compare_page') }}" class="nav-item {% if request.endpoint == 'video_compare_page' %}active{% endif %}">
-          <span class="nav-icon">⚖️</span> 视频对比
+          <span class="nav-icon" style="font-weight:300;">≋</span> 对比
         </a>
         {% if session.get('role') in ('coach', 'doctor', 'analyst', 'admin') %}
         <a href="{{ url_for('coach_leaderboard') }}" class="nav-item {% if request.endpoint == 'coach_leaderboard' %}active{% endif %}">
-          <span class="nav-icon">🏆</span> 队内排行榜
+          <span class="nav-icon" style="font-weight:300;">☰</span> 排行
         </a>
         {% endif %}
         <a href="{{ url_for('injury_tracker') }}" class="nav-item {% if request.endpoint == 'injury_tracker' %}active{% endif %}">
-          <span class="nav-icon">❤️</span> 伤病追踪
+          <span class="nav-icon" style="font-weight:300;">⚕</span> 伤病
         </a>
 
-        <div class="nav-section-title" style="margin-top:18px;">其他</div>
+        <div class="nav-section-title" style="margin-top:18px;font-weight:300;letter-spacing:1px;">其他</div>
         <a href="{{ url_for('logout') }}" class="nav-item">
-          <span class="nav-icon">🚪</span> 退出登录
+          <span class="nav-icon" style="font-weight:300;">⇤</span> 退出
         </a>
       </nav>
 
@@ -99,8 +99,8 @@
       <!-- 顶部栏 -->
       <header class="topbar">
         <div style="display:flex;align-items:center;">
-          <button class="hamburger" id="hamburgerBtn" aria-label="菜单">☰</button>
-          <span class="topbar-title">{% block page_title %}运动员平台{% endblock %}</span>
+          <button class="hamburger" id="hamburgerBtn" aria-label="菜单" style="font-weight:300;">≡</button>
+          <span class="topbar-title" style="font-weight:400;">{% block page_title %}Athlete Trace{% endblock %}</span>
         </div>
         <div class="topbar-actions">
           <span style="font-size:0.78rem;color:var(--text-muted);">{{ session.get('username', '') }}</span>

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}我的训练计划 - 运动员平台{% endblock %}
-{% block page_title %}🏃 我的训练计划{% endblock %}
+{% block page_title %}我的训练计划{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -96,17 +96,17 @@
   <!-- 计划信息 -->
   <div class="plan-header-info">
     <div style="font-size:1.1rem;font-weight:700;color:var(--brand-green);margin-right:auto;">
-      📋 {{ plan.title }}
+      {{ plan.title }}
     </div>
-    <div class="info-item">🏷 <strong>{{ plan.sport_type or '通用' }}</strong></div>
-    <div class="info-item">📅 <strong>{{ plan.duration_weeks }}周</strong></div>
-    <div class="info-item">📝 <strong>{{ plan.total_days }}个训练日</strong></div>
+    <div class="info-item"><strong>{{ plan.sport_type or '通用' }}</strong></div>
+    <div class="info-item"><strong>{{ plan.duration_weeks }}周</strong></div>
+    <div class="info-item"><strong>{{ plan.total_days }}个训练日</strong></div>
   </div>
 
   <!-- 进度条 -->
   <div class="progress-bar-wrap">
     <div class="progress-label">
-      <span style="font-weight:600;color:var(--text-primary);">📊 完成进度</span>
+      <span style="font-weight:600;color:var(--text-primary);">完成进度</span>
       <span style="font-weight:700;color:var(--brand-green);font-size:1.1rem;">{{ athlete_plan.progress_pct }}%</span>
     </div>
     <div class="progress-track">
@@ -120,7 +120,7 @@
   <!-- 今日训练 -->
   {% if today_days %}
   <div class="today-highlight">
-    <span class="today-label">📌 今日训练</span>
+    <span class="today-label">今日训练</span>
     {% for d in today_days %}
     {% set is_done = d.id in completed_ids %}
     <div class="day-row {% if is_done %}completed{% endif %}" onclick="showDayDetail({{ d.to_dict()|tojson }}, {{ is_done|tojson }})">
@@ -135,7 +135,7 @@
       <div class="day-meta">
         <div class="duration">{{ d.duration_min }}分钟</div>
         <button class="check-btn {% if is_done %}checked{% endif %}" onclick="event.stopPropagation();toggleDay({{ d.id }})">
-          {{ '✅ 已完成' if is_done else '✓ 标记完成' }}
+          {{ '已完成' if is_done else '标记完成' }}
         </button>
       </div>
     </div>
@@ -146,7 +146,7 @@
   <!-- 按周分组 -->
   {% for week_num in range(1, plan.duration_weeks + 1) %}
   <div class="week-block">
-    <div class="week-title">📅 第 {{ week_num }} 周</div>
+    <div class="week-title">第 {{ week_num }} 周</div>
     {% set wdays = days_by_week.get(week_num, []) %}
     {% for d in wdays %}
     {% set is_done = d.id in completed_ids %}
@@ -162,7 +162,7 @@
       <div class="day-meta">
         <div class="duration">{{ d.duration_min or '-' }}分钟</div>
         <button class="check-btn {% if is_done %}checked{% endif %}" onclick="event.stopPropagation();toggleDay({{ d.id }})">
-          {{ '✅ 已完成' if is_done else '✓ 标记' }}
+          {{ '已完成' if is_done else '标记' }}
         </button>
       </div>
     </div>
@@ -173,7 +173,7 @@
   {% else %}
   <!-- 无计划状态 -->
   <div class="empty-plan">
-    <div class="empty-icon">📋</div>
+    <div class="empty-icon">—</div>
     <h3 style="color:var(--text-primary);">暂无训练计划</h3>
     <p style="color:var(--text-muted);margin-top:8px;">
       教练尚未为你分配训练计划。请联系教练获取训练安排。
@@ -232,22 +232,22 @@ function showDayDetail(day, isDone) {
           ⏱ ${day.duration_min || '-'} 分钟
         </span>
         <span style="background:var(--bg-surface);padding:4px 12px;border-radius:12px;font-size:0.8rem;color:var(--text-secondary);">
-          ${isDone ? '✅ 已完成' : '⭕ 未完成'}
+          ${isDone ? '已完成' : '未完成'}
         </span>
       </div>
       <div class="card">
-        <h4 style="color:var(--brand-green);margin-bottom:8px;">🏃 热身</h4>
+        <h4 style="color:var(--brand-green);margin-bottom:8px;">热身</h4>
         <p style="color:var(--text-secondary);font-size:0.9rem;white-space:pre-wrap;">${day.warmup || '无'}</p>
       </div>
       <div class="card" style="border-left:3px solid var(--brand-green);">
-        <h4 style="color:var(--brand-green);margin-bottom:8px;">💪 主训练</h4>
+        <h4 style="color:var(--brand-green);margin-bottom:8px;">主训练</h4>
         <p style="color:var(--text-primary);font-size:0.9rem;white-space:pre-wrap;">${day.main_workout || '无'}</p>
       </div>
       <div class="card">
-        <h4 style="color:var(--brand-green);margin-bottom:8px;">🧘 放松</h4>
+        <h4 style="color:var(--brand-green);margin-bottom:8px;">放松</h4>
         <p style="color:var(--text-secondary);font-size:0.9rem;white-space:pre-wrap;">${day.cool_down || '无'}</p>
       </div>
-      ${day.notes ? '<div class="card"><h4 style="color:var(--brand-green);margin-bottom:8px;">📝 备注</h4><p style="color:var(--text-secondary);font-size:0.9rem;">' + day.notes + '</p></div>' : ''}
+      ${day.notes ? '<div class="card"><h4 style="color:var(--brand-green);margin-bottom:8px;">备注</h4><p style="color:var(--text-secondary);font-size:0.9rem;">' + day.notes + '</p></div>' : ''}
     </div>
   `;
   modal.style.display = 'flex';

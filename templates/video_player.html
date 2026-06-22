@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}{{ video.original_filename or '视频播放' }} — 运动员平台{% endblock %}
-{% block page_title %}🎥 {{ video.original_filename or '视频播放' }}{% endblock %}
+{% block page_title %}{{ video.original_filename or '视频播放' }}{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -224,7 +224,7 @@
 
   {% if error %}
   <div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-muted,#888);">
-    <div style="font-size:3rem;">⚠️</div>
+    <div style="font-size:3rem;font-weight:300;">!</div>
     <p>{{ error }}</p>
     <a href="{{ url_for('video_list_page') }}" class="btn-sm btn-outline">返回视频列表</a>
   </div>
@@ -245,15 +245,15 @@
     </div>
     <div class="player-controls">
       <span style="flex:1;min-width:120px;">{{ video.original_filename }}</span>
-      <button class="btn-icon" id="togglePose" onclick="togglePoseOverlay()">📐 姿态标注</button>
+      <button class="btn-icon" id="togglePose" onclick="togglePoseOverlay()">姿态标注</button>
       {% if video.status == 'done' and video.analysis_results %}
-      <button class="btn-icon" id="btnAiDiagnose" onclick="requestAiDiagnose()">🤖 AI 诊断</button>
+      <button class="btn-icon" id="btnAiDiagnose" onclick="requestAiDiagnose()">AI 诊断</button>
       {% endif %}
       {% if video.status in ('uploaded', 'error') %}
-      <button class="btn-analyze" id="btnAnalyze" onclick="triggerAnalyze()">▶ 开始分析</button>
+      <button class="btn-analyze" id="btnAnalyze" onclick="triggerAnalyze()">开始分析</button>
       {% endif %}
       {% if video.status == 'error' %}
-      <button class="btn-icon" onclick="reprocessVideo()">🔄 重试</button>
+      <button class="btn-icon" onclick="reprocessVideo()">重试</button>
       {% endif %}
     </div>
   </div>
@@ -263,7 +263,7 @@
 
     <!-- 视频信息 -->
     <div class="info-card">
-      <h4>📋 视频信息</h4>
+      <h4>视频信息</h4>
       <div class="info-row">
         <span class="label">状态</span>
         <span class="value">
@@ -297,7 +297,7 @@
     <!-- 分析结果 -->
     <div class="info-card" id="analysisCard">
       <h4>
-        📊 分析结果
+        分析结果
         {% set results = video.parsed_results %}
         {% if results.get('is_mock') %}
         <span class="mock-badge">模拟</span>
@@ -310,7 +310,7 @@
 
       {% if video.status == 'processing' %}
       <div style="text-align:center;padding:24px;">
-        <div style="font-size:2rem;">⏳</div>
+        <div style="font-size:2rem;font-weight:300;">...</div>
         <p style="color:var(--text-muted,#888);">正在分析中...</p>
         <div class="progress-bar-bg" style="margin-top:8px;">
           <div class="progress-bar-fill" style="width:60%;animation:pulse 1.5s infinite;"></div>
@@ -323,13 +323,13 @@
         {% if results.get('error') %}
         <p style="font-size:0.78rem;color:var(--text-muted,#888);word-break:break-all;">{{ results.error }}</p>
         {% endif %}
-        <button class="btn-analyze" style="margin-top:8px;" onclick="triggerAnalyze()">▶ 重新分析</button>
+        <button class="btn-analyze" style="margin-top:8px;" onclick="triggerAnalyze()">重新分析</button>
       </div>
 
       {% elif video.status == 'uploaded' %}
       <div style="text-align:center;padding:24px;color:var(--text-muted,#888);">
         <p>等待分析...</p>
-        <button class="btn-analyze" style="margin-top:8px;" onclick="triggerAnalyze()">▶ 开始分析</button>
+        <button class="btn-analyze" style="margin-top:8px;" onclick="triggerAnalyze()">开始分析</button>
       </div>
 
       {% elif test_type == 'sprint' %}
@@ -461,7 +461,7 @@
       {% endif %}
 
       {% if metrics.get('note') and not metrics.get('type') in ('sprint','jump','squat','general') %}
-        <p style="font-size:0.72rem;color:var(--text-muted,#888);margin-top:8px;">💡 {{ metrics.note }}</p>
+        <p style="font-size:0.72rem;color:var(--text-muted,#888);margin-top:8px;">{{ metrics.note }}</p>
       {% endif %}
 
       {% if not metrics and video.status != 'processing' and video.status != 'uploaded' and video.status != 'error' %}
@@ -471,7 +471,7 @@
 
     <!-- 姿态预览 -->
     <div class="info-card" id="posePreviewCard" style="display:none;">
-      <h4>🦴 姿态预览</h4>
+      <h4>姿态预览</h4>
       <div class="pose-preview">
         <canvas id="skeletonCanvas" width="280" height="280"></canvas>
       </div>
@@ -479,7 +479,7 @@
 
     <!-- AI 诊断报告 -->
     <div class="info-card" id="aiDiagnosisCard" style="display:none;">
-      <h4>🤖 AI 诊断报告</h4>
+      <h4>AI 诊断报告</h4>
       <div id="aiDiagnosisContent" style="font-size:0.82rem;line-height:1.6;color:var(--text,#e0e0e0);max-height:400px;overflow-y:auto;"></div>
     </div>
 

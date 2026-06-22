@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}数据录入 — 运动员平台{% endblock %}
-{% block page_title %}📝 数据录入{% endblock %}
+{% block page_title %}数据录入{% endblock %}
 
 {% block content %}
 <div class="data-entry-form animate-fade-up">
@@ -14,10 +14,10 @@
 
   <!-- Tab 切换 -->
   <div class="tabs" id="entryTabs">
-    <button class="tab-btn active" data-tab="tab-body">🫀 身体指标</button>
-    <button class="tab-btn" data-tab="tab-test">📊 测试记录</button>
-    <button class="tab-btn" data-tab="tab-training">🏃 训练日志</button>
-    <button class="tab-btn" data-tab="tab-injury">🩺 伤病记录</button>
+    <button class="tab-btn active" data-tab="tab-body">身体指标</button>
+    <button class="tab-btn" data-tab="tab-test">测试记录</button>
+    <button class="tab-btn" data-tab="tab-training">训练日志</button>
+    <button class="tab-btn" data-tab="tab-injury">伤病记录</button>
   </div>
 
   <!-- ===== Tab 1: 身体指标 ===== -->
@@ -32,7 +32,7 @@
           <div class="form-group">
             <label class="form-label" for="body_weight">
               体重 (kg) *
-              <span class="tooltip-trigger" data-tip="晨起空腹、排尿后、仅穿内衣测量。每周固定一天同一时间。">❓</span>
+              <span class="tooltip-trigger" data-tip="晨起空腹、排尿后、仅穿内衣测量。每周固定一天同一时间。">(?)</span>
             </label>
             <input type="number" id="body_weight" name="weight_kg" class="form-input"
                    placeholder="例：72.5" step="0.1" min="30" max="200" required>
@@ -41,7 +41,7 @@
           <div class="form-group">
             <label class="form-label" for="body_fat">
               体脂率 (%)
-              <span class="tooltip-trigger" data-tip="使用生物电阻抗法(BIA)或皮褶卡尺测量。晨起空腹、测量前4小时不运动不饮大量水。">❓</span>
+              <span class="tooltip-trigger" data-tip="使用生物电阻抗法(BIA)或皮褶卡尺测量。晨起空腹、测量前4小时不运动不饮大量水。">(?)</span>
             </label>
             <input type="number" id="body_fat" name="body_fat_pct" class="form-input"
                    placeholder="例：12.5" step="0.1" min="2" max="50">
@@ -53,7 +53,7 @@
           <div class="form-group">
             <label class="form-label" for="body_muscle">
               肌肉量 (kg)
-              <span class="tooltip-trigger" data-tip="同体脂率测量条件，由体成分分析仪自动计算。">❓</span>
+              <span class="tooltip-trigger" data-tip="同体脂率测量条件，由体成分分析仪自动计算。">(?)</span>
             </label>
             <input type="number" id="body_muscle" name="muscle_mass" class="form-input"
                    placeholder="例：35.0" step="0.1" min="10" max="80">
@@ -62,7 +62,7 @@
           <div class="form-group">
             <label class="form-label" for="body_rhr">
               静息心率 (bpm)
-              <span class="tooltip-trigger" data-tip="晨起、静卧5分钟后测量。正常范围 40-80 bpm，运动员偏低属正常。">❓</span>
+              <span class="tooltip-trigger" data-tip="晨起、静卧5分钟后测量。正常范围 40-80 bpm，运动员偏低属正常。">(?)</span>
             </label>
             <input type="number" id="body_rhr" name="resting_hr" class="form-input"
                    placeholder="例：58" step="1" min="30" max="120">
@@ -74,7 +74,7 @@
           <div class="form-group">
             <label class="form-label" for="body_bp_sys">
               收缩压 (mmHg)
-              <span class="tooltip-trigger" data-tip="静坐5分钟后测量，手臂与心脏齐平。正常 <120/80。">❓</span>
+              <span class="tooltip-trigger" data-tip="静坐5分钟后测量，手臂与心脏齐平。正常 <120/80。">(?)</span>
             </label>
             <input type="number" id="body_bp_sys" name="blood_pressure_sys" class="form-input"
                    placeholder="例：120" step="1" min="70" max="200">
@@ -83,7 +83,7 @@
           <div class="form-group">
             <label class="form-label" for="body_bp_dia">
               舒张压 (mmHg)
-              <span class="tooltip-trigger" data-tip="静坐5分钟后测量，手臂与心脏齐平。正常 <80。">❓</span>
+              <span class="tooltip-trigger" data-tip="静坐5分钟后测量，手臂与心脏齐平。正常 <80。">(?)</span>
             </label>
             <input type="number" id="body_bp_dia" name="blood_pressure_dia" class="form-input"
                    placeholder="例：80" step="1" min="40" max="130">
@@ -94,7 +94,7 @@
         <div class="form-group">
           <label class="form-label" for="body_vo2">
             VO₂max (mL/kg/min)
-            <span class="tooltip-trigger" data-tip="通过最大摄氧量测试或次最大测试估算。分级折返跑/功率车/跑台均可。">❓</span>
+            <span class="tooltip-trigger" data-tip="通过最大摄氧量测试或次最大测试估算。分级折返跑/功率车/跑台均可。">(?)</span>
           </label>
           <input type="number" id="body_vo2" name="vo2_max" class="form-input"
                  placeholder="例：55.0" step="0.1" min="20" max="90">
@@ -106,7 +106,7 @@
           <input type="date" id="body_date" name="record_date" class="form-input" required>
         </div>
 
-        <button type="submit" class="btn btn-primary">✅ 提交身体指标</button>
+        <button type="submit" class="btn btn-primary">提交身体指标</button>
       </div>
     </form>
   </div>
@@ -122,7 +122,7 @@
         <div class="form-group">
           <label class="form-label" for="test_name">
             测试项目 *
-            <span class="tooltip-trigger" data-tip="选择标准体能测试项目。确保测试前充分热身，按标准流程执行。">❓</span>
+            <span class="tooltip-trigger" data-tip="选择标准体能测试项目。确保测试前充分热身，按标准流程执行。">(?)</span>
           </label>
           <select id="test_name" name="test_id" class="form-input" required>
             <option value="">— 请选择测试项目 —</option>
@@ -136,7 +136,7 @@
           <div class="form-group">
             <label class="form-label" for="test_value">
               测试值 *
-              <span class="tooltip-trigger" data-tip="输入原始测量值。注意单位（秒/厘米/公斤/次/级/分/%）。">❓</span>
+              <span class="tooltip-trigger" data-tip="输入原始测量值。注意单位（秒/厘米/公斤/次/级/分/%）。">(?)</span>
             </label>
             <input type="text" id="test_value" name="raw_value" class="form-input"
                    placeholder="例：11.2 (秒) 或 120 (kg)" required>
@@ -166,7 +166,7 @@
                     placeholder="可选：测试环境、感受等"></textarea>
         </div>
 
-        <button type="submit" class="btn btn-primary">✅ 提交测试记录</button>
+        <button type="submit" class="btn btn-primary">提交测试记录</button>
       </div>
     </form>
   </div>
@@ -187,7 +187,7 @@
           <div class="form-group">
             <label class="form-label" for="train_duration">
               训练时长（分钟）
-              <span class="tooltip-trigger" data-tip="从热身开始到放松结束的总时间。">❓</span>
+              <span class="tooltip-trigger" data-tip="从热身开始到放松结束的总时间。">(?)</span>
             </label>
             <input type="number" id="train_duration" name="duration_min" class="form-input"
                    placeholder="例：60" step="1" min="5" max="480">
@@ -199,19 +199,19 @@
           <div class="form-group">
             <label class="form-label" for="train_intensity">
               训练强度
-              <span class="tooltip-trigger" data-tip="低=轻松对话/中=短句交流/高=无法说话">❓</span>
+              <span class="tooltip-trigger" data-tip="低=轻松对话/中=短句交流/高=无法说话">(?)</span>
             </label>
             <select id="train_intensity" name="intensity" class="form-input">
-              <option value="low">🟢 低强度</option>
-              <option value="moderate" selected>🟡 中等强度</option>
-              <option value="high">🟠 高强度</option>
-              <option value="max">🔴 最大强度</option>
+              <option value="low">低强度</option>
+              <option value="moderate" selected>中等强度</option>
+              <option value="high">高强度</option>
+              <option value="max">最大强度</option>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label" for="train_rpe">
               RPE（自感劳累 1-10）
-              <span class="tooltip-trigger" data-tip="自觉劳累度: 1=完全轻松, 5=中等, 7=吃力, 10=力竭">❓</span>
+              <span class="tooltip-trigger" data-tip="自觉劳累度: 1=完全轻松, 5=中等, 7=吃力, 10=力竭">(?)</span>
             </label>
             <select id="train_rpe" name="rpe" class="form-input">
               <option value="">— 选择 RPE —</option>
@@ -226,7 +226,7 @@
           <div class="form-group">
             <label class="form-label" for="train_distance">
               距离 (km)
-              <span class="tooltip-trigger" data-tip="GPS或跑道计圈的总距离。">❓</span>
+              <span class="tooltip-trigger" data-tip="GPS或跑道计圈的总距离。">(?)</span>
             </label>
             <input type="number" id="train_distance" name="total_distance_km" class="form-input"
                    placeholder="例：5.0" step="0.1" min="0" max="200">
@@ -234,7 +234,7 @@
           <div class="form-group">
             <label class="form-label" for="train_hr">
               平均心率 (bpm)
-              <span class="tooltip-trigger" data-tip="训练全程心率的算术平均值。">❓</span>
+              <span class="tooltip-trigger" data-tip="训练全程心率的算术平均值。">(?)</span>
             </label>
             <input type="number" id="train_hr" name="hr_avg" class="form-input"
                    placeholder="例：145" step="1" min="40" max="220">
@@ -255,7 +255,7 @@
                     placeholder="可选：身体感受、天气、装备等"></textarea>
         </div>
 
-        <button type="submit" class="btn btn-primary">✅ 提交训练日志</button>
+        <button type="submit" class="btn btn-primary">提交训练日志</button>
       </div>
     </form>
   </div>
@@ -312,9 +312,9 @@
           <div class="form-group">
             <label class="form-label" for="severity">严重程度</label>
             <select id="severity" name="severity" class="form-input">
-              <option value="mild">🟢 轻度</option>
-              <option value="moderate" selected>🟡 中度</option>
-              <option value="severe">🔴 重度</option>
+              <option value="mild">轻度</option>
+              <option value="moderate" selected>中度</option>
+              <option value="severe">重度</option>
             </select>
           </div>
         </div>
@@ -323,9 +323,9 @@
           <div class="form-group">
             <label class="form-label" for="injury_status">当前状态</label>
             <select id="injury_status" name="status" class="form-input">
-              <option value="active">🟠 活动中</option>
-              <option value="recovering">🟢 恢复中</option>
-              <option value="recovered">✅ 已康复</option>
+              <option value="active">活动中</option>
+              <option value="recovering">恢复中</option>
+              <option value="recovered">已康复</option>
             </select>
           </div>
           <div class="form-group">
@@ -346,7 +346,7 @@
                     placeholder="可选：治疗方案、康复计划等"></textarea>
         </div>
 
-        <button type="submit" class="btn btn-primary">✅ 提交伤病记录</button>
+        <button type="submit" class="btn btn-primary">提交伤病记录</button>
       </div>
     </form>
   </div>
@@ -493,15 +493,15 @@ function handleBodySubmit(e) {
   .then(function(data) {
     hideFormLoading();
     if (data.success) {
-      showToast('✅ 身体指标已保存！', 'success');
+      showToast('身体指标已保存', 'success');
       form.reset();
     } else {
-      showToast('❌ ' + (data.error || '保存失败'), 'error');
+      showToast((data.error || '保存失败'), 'error');
     }
   })
   .catch(function() {
     hideFormLoading();
-    showToast('❌ 网络错误，请稍后重试', 'error');
+    showToast('网络错误，请稍后重试', 'error');
   });
 
   return false;
@@ -544,15 +544,15 @@ function handleTestSubmit(e) {
   .then(function(data) {
     hideFormLoading();
     if (data.success) {
-      showToast('✅ 测试记录已保存！', 'success');
+      showToast('测试记录已保存', 'success');
       form.reset();
     } else {
-      showToast('❌ ' + (data.error || '保存失败'), 'error');
+      showToast((data.error || '保存失败'), 'error');
     }
   })
   .catch(function() {
     hideFormLoading();
-    showToast('❌ 网络错误，请稍后重试', 'error');
+    showToast('网络错误，请稍后重试', 'error');
   });
 
   return false;
@@ -607,15 +607,15 @@ function handleTrainingSubmit(e) {
   .then(function(data) {
     hideFormLoading();
     if (data.success) {
-      showToast('✅ 训练日志已保存！', 'success');
+      showToast('训练日志已保存', 'success');
       form.reset();
     } else {
-      showToast('❌ ' + (data.error || '保存失败'), 'error');
+      showToast((data.error || '保存失败'), 'error');
     }
   })
   .catch(function() {
     hideFormLoading();
-    showToast('❌ 网络错误，请稍后重试', 'error');
+    showToast('网络错误，请稍后重试', 'error');
   });
 
   return false;
@@ -650,15 +650,15 @@ function handleInjurySubmit(e) {
   .then(function(data) {
     hideFormLoading();
     if (data.success) {
-      showToast('✅ 伤病记录已保存！', 'success');
+      showToast('伤病记录已保存', 'success');
       form.reset();
     } else {
-      showToast('❌ ' + (data.error || '保存失败'), 'error');
+      showToast((data.error || '保存失败'), 'error');
     }
   })
   .catch(function() {
     hideFormLoading();
-    showToast('❌ 网络错误，请稍后重试', 'error');
+    showToast('网络错误，请稍后重试', 'error');
   });
 
   return false;

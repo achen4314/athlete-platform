@@ -234,7 +234,7 @@
   <!-- Video Selectors -->
   <div class="vc-selectors">
     <div class="vc-selector-card" id="cardA">
-      <h3>🔴 视频 A（参考/前期）</h3>
+      <h3>视频 A（参考/前期）</h3>
       <select id="videoSelectA" onchange="selectVideo('A')">
         <option value="">-- 选择视频 --</option>
         {% for v in videos %}
@@ -244,7 +244,7 @@
       <div class="vc-video-info" id="videoInfoA"></div>
     </div>
     <div class="vc-selector-card" id="cardB">
-      <h3>🔵 视频 B（对比/后期）</h3>
+      <h3>视频 B（对比/后期）</h3>
       <select id="videoSelectB" onchange="selectVideo('B')">
         <option value="">-- 选择视频 --</option>
         {% for v in videos %}
@@ -261,7 +261,7 @@
       <div class="vc-player-label">视频 A</div>
       <video id="videoPlayerA" controls preload="metadata" playsinline></video>
       <div class="vc-placeholder" id="placeholderA">
-        <div class="icon-big">🎬</div>
+        <div class="icon-big">[]</div>
         <div>选择视频 A</div>
       </div>
     </div>
@@ -269,7 +269,7 @@
       <div class="vc-player-label right">视频 B</div>
       <video id="videoPlayerB" controls preload="metadata" playsinline></video>
       <div class="vc-placeholder" id="placeholderB">
-        <div class="icon-big">🎬</div>
+        <div class="icon-big">[]</div>
         <div>选择视频 B</div>
       </div>
     </div>
@@ -277,18 +277,18 @@
 
   <!-- Controls -->
   <div class="vc-controls">
-    <button onclick="syncPlay()">▶️ 同步播放</button>
-    <button class="secondary" onclick="syncPause()">⏸️ 同步暂停</button>
-    <button class="secondary" onclick="syncRestart()">🔄 重新开始</button>
+    <button onclick="syncPlay()">同步播放</button>
+    <button class="secondary" onclick="syncPause()">同步暂停</button>
+    <button class="secondary" onclick="syncRestart()">重新开始</button>
     <label style="color:#8899aa;font-size:0.85rem;">速度:</label>
     <input type="range" id="playbackSpeed" min="0.25" max="2" step="0.25" value="1" oninput="setSpeed(this.value)" title="播放速度">
     <span id="speedLabel" style="color:#a0c040;font-size:0.8rem;min-width:32px;">1x</span>
-    <button class="danger" onclick="stopAll()">⏹️ 停止</button>
+    <button class="danger" onclick="stopAll()">停止</button>
   </div>
 
   <!-- Metrics Comparison -->
   <div class="vc-comparison" id="comparisonSection" style="display:none;">
-    <h3>📊 视频分析指标对比</h3>
+    <h3>视频分析指标对比</h3>
     <div class="vc-table-wrapper">
       <table class="vc-table">
         <thead>
@@ -338,8 +338,8 @@
     const test = opt.dataset.test || '';
     const date = opt.dataset.date || '';
     infoEl.innerHTML = [
-      test ? '<span>📋 ' + test + '</span>' : '',
-      date ? '<span>📅 ' + date + '</span>' : '',
+      test ? '<span>' + test + '</span>' : '',
+      date ? '<span>' + date + '</span>' : '',
       '<span style="color:#a0c040;">ID: ' + videoId + '</span>'
     ].join('');
 

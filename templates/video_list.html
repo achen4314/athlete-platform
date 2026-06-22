@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}视频分析 — 运动员平台{% endblock %}
-{% block page_title %}🎥 视频分析{% endblock %}
+{% block page_title %}视频分析{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -228,7 +228,7 @@
 
   <!-- 上传区域 -->
   <div class="upload-section" id="uploadSection">
-    <h3>📤 上传训练视频</h3>
+    <h3>上传训练视频</h3>
     <form class="upload-form" id="uploadForm" enctype="multipart/form-data">
       <div class="form-group">
         <label>视频文件</label>
@@ -238,10 +238,10 @@
         <label>测试类型</label>
         <select name="test_type" id="testType">
           <option value="">— 自动检测 —</option>
-          <option value="sprint">🏃 跑步分析（步频/步幅）</option>
-          <option value="jump">🦘 纵跳分析（高度/起跳角）</option>
-          <option value="squat">🏋️ 力量举/深蹲（关节角/杠铃速度）</option>
-          <option value="general">📋 通用姿态分析</option>
+          <option value="sprint">跑步分析（步频/步幅）</option>
+          <option value="jump">纵跳分析（高度/起跳角）</option>
+          <option value="squat">力量举/深蹲（关节角/杠铃速度）</option>
+          <option value="general">通用姿态分析</option>
         </select>
       </div>
       <div class="form-group">
@@ -253,9 +253,9 @@
       </button>
     </form>
     <div class="test-type-hints">
-      <span class="test-type-hint">🏃 跑步：分析步频、步幅、着地时间、前倾角</span>
-      <span class="test-type-hint">🦘 纵跳：分析腾空高度、起跳速度、起跳角度</span>
-      <span class="test-type-hint">🏋️ 深蹲：分析关节角度、对称性、杠铃速度</span>
+      <span class="test-type-hint">跑步：分析步频、步幅、着地时间、前倾角</span>
+      <span class="test-type-hint">纵跳：分析腾空高度、起跳速度、起跳角度</span>
+      <span class="test-type-hint">深蹲：分析关节角度、对称性、杠铃速度</span>
     </div>
     <div class="upload-progress" id="uploadProgress">
       <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
@@ -264,17 +264,17 @@
   </div>
 
   <!-- 视频列表 -->
-  <h3 style="color:var(--text,#e0e0e0);margin-bottom:16px;">📂 我的视频 ({{ videos|length }})</h3>
+  <h3 style="color:var(--text,#e0e0e0);margin-bottom:16px;">我的视频 ({{ videos|length }})</h3>
 
   {% if videos %}
   <div class="video-grid">
     {% for v in videos %}
     <div class="video-card" id="videoCard{{ v.video_id }}">
       <div class="video-card-preview">
-        {% if v.status == 'done' %}🎬
-        {% elif v.status == 'processing' %}⏳
-        {% elif v.status == 'error' %}⚠️
-        {% else %}📹{% endif %}
+        {% if v.status == 'done' %}▸
+        {% elif v.status == 'processing' %}...
+        {% elif v.status == 'error' %}!
+        {% else %}[]{% endif %}
         <span class="preview-badge">
           <span class="status-badge status-{{ v.status }}">{{ v.status_label }}</span>
         </span>
@@ -289,13 +289,13 @@
       </div>
       <div class="video-card-actions">
         <a href="{{ url_for('video_player_page', video_id=v.video_id) }}" class="btn-sm btn-primary">
-          {% if v.status == 'done' %}▶ 查看{% else %}📋 详情{% endif %}
+          {% if v.status == 'done' %}查看{% else %}详情{% endif %}
         </a>
         {% if v.status in ('uploaded', 'error') %}
         <button class="btn-sm btn-analyze" onclick="analyzeVideo('{{ v.video_id }}', this)">▶ 分析</button>
         {% endif %}
         {% if v.status == 'error' %}
-        <button class="btn-sm btn-outline" onclick="analyzeVideo('{{ v.video_id }}', this)">🔄 重试</button>
+        <button class="btn-sm btn-outline" onclick="analyzeVideo('{{ v.video_id }}', this)">重试</button>
         {% endif %}
       </div>
     </div>
@@ -303,7 +303,7 @@
   </div>
   {% else %}
   <div class="empty-state">
-    <div class="icon">🎥</div>
+    <div class="icon">[]</div>
     <div>还没有上传视频</div>
     <p style="font-size:0.85rem;">上传训练视频以获取 AI 姿态分析</p>
   </div>
@@ -383,9 +383,9 @@
           progressText.textContent = '✅ 上传成功，正在分析姿态...';
           const resp = JSON.parse(xhr.responseText);
           if (resp.video && resp.video.status === 'done') {
-            showToast('✅ 上传并分析完成！', 'success');
-          } else {
-            showToast('✅ 上传成功！视频分析中...', 'success');
+            showToast('上传并分析完成', 'success');
+            } else {
+            showToast('上传成功，视频分析中...', 'success');
           }
           setTimeout(function() { location.reload(); }, 1500);
         } else {
@@ -394,7 +394,7 @@
             const err = JSON.parse(xhr.responseText);
             errMsg = err.error || errMsg;
           } catch(_) {}
-          showToast('❌ ' + errMsg, 'error');
+          showToast(errMsg, 'error');
           uploadBtn.disabled = false;
           uploadBtn.textContent = '⬆ 上传并分析';
           progressDiv.style.display = 'none';
@@ -402,7 +402,7 @@
       };
 
       xhr.onerror = function() {
-        showToast('❌ 网络错误，请重试', 'error');
+        showToast('网络错误，请重试', 'error');
         uploadBtn.disabled = false;
         uploadBtn.textContent = '⬆ 上传并分析';
         progressDiv.style.display = 'none';
@@ -410,7 +410,7 @@
 
       xhr.send(formData);
     } catch(err) {
-      showToast('❌ ' + err.message, 'error');
+      showToast(err.message, 'error');
       uploadBtn.disabled = false;
       uploadBtn.textContent = '⬆ 上传并分析';
     }
@@ -429,20 +429,20 @@ async function analyzeVideo(videoId, btn) {
     const data = await resp.json();
 
     if (data.success) {
-      showToast('✅ 分析完成', 'success');
+      showToast('分析完成', 'success');
       setTimeout(() => location.reload(), 800);
     } else if (data.status === 'processing') {
-      showToast('⏳ 视频正在分析中...', 'info');
+      showToast('视频正在分析中...', 'info');
       setTimeout(() => location.reload(), 3000);
     } else {
-      showToast('⚠️ 分析失败: ' + (data.message || data.error || ''), 'error');
+      showToast('分析失败: ' + (data.message || data.error || ''), 'error');
       if (btn) {
         btn.disabled = false;
         btn.textContent = '▶ 重新分析';
       }
     }
   } catch(e) {
-    showToast('❌ 请求失败: ' + e.message, 'error');
+    showToast('请求失败: ' + e.message, 'error');
     if (btn) {
       btn.disabled = false;
       btn.textContent = '▶ 分析';

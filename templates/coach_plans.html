@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}训练计划管理 - 运动员平台{% endblock %}
-{% block page_title %}📋 训练计划管理{% endblock %}
+{% block page_title %}训练计划管理{% endblock %}
 
 {% block content %}
 <div class="plan-header">
@@ -29,23 +29,23 @@
           {{ plan.description or '暂无描述' }}
         </p>
         <div class="plan-card-meta">
-          <span>🏷 {{ plan.sport_type or '通用' }}</span>
-          <span>📅 {{ plan.duration_weeks }}周</span>
-          <span>📝 {{ plan.total_days }}个训练日</span>
-          <span>👤 {{ plan.assigned_count }}名运动员</span>
+          <span>{{ plan.sport_type or '通用' }}</span>
+          <span>{{ plan.duration_weeks }}周</span>
+          <span>{{ plan.total_days }}个训练日</span>
+          <span>{{ plan.assigned_count }}名运动员</span>
         </div>
       </div>
       <div class="plan-card-actions">
-        <a href="{{ url_for('plan_editor', plan_id=plan.id) }}" class="btn btn-outline btn-sm">✏️ 编辑内容</a>
-        <a href="{{ url_for('coach_plan_assign', plan_id=plan.id) }}" class="btn btn-outline btn-sm">👥 分配</a>
-        <button class="btn btn-secondary btn-sm" onclick="viewProgress({{ plan.id }})">📊 进度</button>
-        <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deletePlan({{ plan.id }})">🗑 删除</button>
+        <a href="{{ url_for('plan_editor', plan_id=plan.id) }}" class="btn btn-outline btn-sm">编辑内容</a>
+        <a href="{{ url_for('coach_plan_assign', plan_id=plan.id) }}" class="btn btn-outline btn-sm">分配</a>
+        <button class="btn btn-secondary btn-sm" onclick="viewProgress({{ plan.id }})">进度</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deletePlan({{ plan.id }})">删除</button>
       </div>
     </div>
     {% endfor %}
   {% else %}
     <div class="empty-state">
-      <div class="empty-icon">📋</div>
+      <div class="empty-icon">—</div>
       <p>还没有训练计划</p>
       <p style="color:var(--text-muted);font-size:0.85rem;">点击"创建新计划"开始创建</p>
     </div>
@@ -88,7 +88,7 @@
 <div class="modal-overlay" id="progressModal" style="display:none;">
   <div class="modal" style="max-width:650px;">
     <div class="modal-header">
-      <h3>📊 执行进度</h3>
+      <h3>执行进度</h3>
       <button class="modal-close" onclick="document.getElementById('progressModal').style.display='none'">&times;</button>
     </div>
     <div class="modal-body" id="progressContent">

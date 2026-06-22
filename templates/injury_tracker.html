@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}伤病追踪 — 运动员平台{% endblock %}
-{% block page_title %}❤️ 伤病追踪看板{% endblock %}
+{% block page_title %}伤病追踪看板{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -359,7 +359,7 @@
 
 <!-- 工具栏 -->
 <div class="toolbar">
-  <button class="btn btn-primary" onclick="openInjuryModal()">➕ 新增伤病记录</button>
+  <button class="btn btn-primary" onclick="openInjuryModal()">新增伤病记录</button>
 </div>
 
 <!-- 双栏布局：人体图 + 时间线 -->
@@ -368,7 +368,7 @@
   <!-- 人体图 -->
   <div class="card body-map-card" id="bodyMapCard">
     <div class="card-header" style="width:100%;">
-      <span class="card-title">🫀 人体伤病图</span>
+      <span class="card-title">人体伤病图</span>
       <span style="font-size:0.7rem;color:var(--text-muted);">点击部位记录伤病</span>
     </div>
 
@@ -492,13 +492,13 @@
   <!-- 伤病时间线 -->
   <div class="card timeline-card">
     <div class="card-header">
-      <span class="card-title">📅 伤病时间线</span>
+      <span class="card-title">伤病时间线</span>
       <span id="timelineCount" style="font-size:0.7rem;color:var(--text-muted);">0条记录</span>
     </div>
 
     <div class="timeline" id="injuryTimeline">
       <div class="empty-state-injury">
-        <div class="empty-icon">✅</div>
+        <div class="empty-icon">—</div>
         <p>暂无伤病记录</p>
         <p style="font-size:0.7rem;">点击左侧人体图或上方按钮记录伤病</p>
       </div>
@@ -510,7 +510,7 @@
 <!-- 伤病统计摘要 -->
 <div class="card card-accent-teal" style="margin-top:0;">
   <div class="card-header">
-    <span class="card-title">📈 伤病统计</span>
+    <span class="card-title">伤病统计</span>
   </div>
   <div class="metric-grid" style="margin-bottom:0;">
     <div class="metric-card">
@@ -531,7 +531,7 @@
 <!-- 新增伤病模态框 -->
 <div class="modal-overlay" id="injuryModal">
   <div class="modal">
-    <div class="modal-title">🩺 新增伤病记录</div>
+    <div class="modal-title">新增伤病记录</div>
 
     <div class="form-group">
       <label class="form-label">受伤部位 *</label>
@@ -601,7 +601,7 @@
 
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeInjuryModal()">取消</button>
-      <button class="btn btn-primary" onclick="submitInjury()">💾 保存记录</button>
+      <button class="btn btn-primary" onclick="submitInjury()">保存记录</button>
     </div>
   </div>
 </div>
@@ -645,7 +645,7 @@ function renderTimeline(injuries) {
   document.getElementById('timelineCount').textContent = injuries.length + '条记录';
 
   if (!injuries.length) {
-    container.innerHTML = '<div class="empty-state-injury"><div class="empty-icon">✅</div><p>暂无伤病记录</p><p style="font-size:0.7rem;">点击左侧人体图或上方按钮记录伤病</p></div>';
+    container.innerHTML = '<div class="empty-state-injury"><div class="empty-icon">—</div><p>暂无伤病记录</p><p style="font-size:0.7rem;">点击左侧人体图或上方按钮记录伤病</p></div>';
     return;
   }
 
@@ -674,12 +674,12 @@ function renderTimeline(injuries) {
 
     html +=
       '<div class="timeline-item ' + statusClass + '">' +
-        '<div class="timeline-date">📅 ' + (inj.injury_date || '') + '</div>' +
+        '<div class="timeline-date">' + (inj.injury_date || '') + '</div>' +
         '<div class="timeline-card-inner">' +
           '<div class="timeline-body-part">' + (inj.body_part || '未知部位') + ' ' + statusBadge + '</div>' +
           '<div class="timeline-type">' + (inj.injury_type || '') + ' · ' + severityLabel(inj.severity) + '</div>' +
           (inj.description ? '<div class="timeline-desc">' + inj.description + '</div>' : '') +
-          (inj.recovery_date ? '<div class="timeline-desc" style="color:#4caf50;">🏁 预计康复: ' + inj.recovery_date + '</div>' : '') +
+          (inj.recovery_date ? '<div class="timeline-desc" style="color:#4caf50;">预计康复: ' + inj.recovery_date + '</div>' : '') +
           progressHtml +
         '</div>' +
       '</div>';
@@ -795,7 +795,7 @@ function submitInjury() {
       closeInjuryModal();
       loadTimeline();
       if (typeof showToast === 'function') {
-        showToast('✅ 伤病记录已保存', 'success');
+        showToast('伤病记录已保存', 'success');
       }
     } else {
       alert('保存失败: ' + (data.error || '未知错误'));
